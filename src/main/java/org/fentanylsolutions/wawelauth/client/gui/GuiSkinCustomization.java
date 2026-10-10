@@ -6,6 +6,7 @@ import net.minecraft.client.resources.I18n;
 
 import org.fentanylsolutions.wawelauth.api.SkinLayersHelper;
 import org.fentanylsolutions.wawelauth.client.render.skinlayers.SkinLayersConfig;
+import org.fentanylsolutions.wawelauth.client.skin.WearerSkinSettings;
 
 import com.gtnewhorizon.gtnhlib.config.ConfigurationManager;
 
@@ -33,13 +34,15 @@ public class GuiSkinCustomization extends GuiScreen {
                     150,
                     20,
                     I18n.format(part.partName()),
-                    !part.hidden()));
+                    !WearerSkinSettings.isHidden(part.skinPart())));
         }
     }
 
     @Override
     public void onGuiClosed() {
         ConfigurationManager.save(SkinLayersConfig.class);
+        // Persists the cape option and sends the settings, which carries the parts to the server.
+        this.mc.gameSettings.saveOptions();
     }
 
     @Override
@@ -60,7 +63,7 @@ public class GuiSkinCustomization extends GuiScreen {
             SkinLayersHelper.EnumPlayerModelParts part = SkinLayersHelper.EnumPlayerModelParts.fromId(button.id - 1);
             if (part != null) {
                 toggle.toggle();
-                part.setHidden(!toggle.getEnabled());
+                WearerSkinSettings.setHidden(part.skinPart(), !toggle.getEnabled());
             }
         } else if (button.id == -1) {
             this.mc.displayGuiScreen(this.parentScreen);

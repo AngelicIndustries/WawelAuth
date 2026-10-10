@@ -11,6 +11,7 @@ import org.fentanylsolutions.wawelauth.common.ServerTaskScheduler;
 import org.fentanylsolutions.wawelauth.packet.PacketHandler;
 import org.fentanylsolutions.wawelauth.wawelcore.config.ClientConfig;
 import org.fentanylsolutions.wawelauth.wawelcore.config.ServerConfig;
+import org.fentanylsolutions.wawelauth.wawelcore.skin.SkinPartsServerHandler;
 import org.fentanylsolutions.wawelauth.wawelnet.HttpRequestHandler;
 import org.fentanylsolutions.wawelauth.wawelnet.HttpsContextProvider;
 import org.fentanylsolutions.wawelauth.wawelserver.CommandWawelAuth;
@@ -43,6 +44,7 @@ public class CommonProxy {
 
         PacketHandler.init();
         ServerTaskScheduler.register();
+        SkinPartsServerHandler.register();
         WawelAuth.LOG.info("I am Wawel Auth at version {}", Tags.VERSION);
     }
 
@@ -119,6 +121,9 @@ public class CommonProxy {
     }
 
     public void onConfigReload() {}
+
+    /** The server's WA version from the FML handshake, null if it has none. Client only. */
+    public void onServerModList(String wawelVersion) {}
 
     private void failAbsoluteApiRootStartup(ServerConfig config) {
         WawelAuth.LOG.error("============================================================");

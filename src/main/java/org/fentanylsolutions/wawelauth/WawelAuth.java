@@ -1,5 +1,7 @@
 package org.fentanylsolutions.wawelauth;
 
+import java.util.Map;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.fentanylsolutions.wawelauth.test.SqliteSmokeTest;
@@ -13,6 +15,8 @@ import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import cpw.mods.fml.common.event.FMLServerAboutToStartEvent;
 import cpw.mods.fml.common.event.FMLServerStartingEvent;
 import cpw.mods.fml.common.event.FMLServerStoppingEvent;
+import cpw.mods.fml.common.network.NetworkCheckHandler;
+import cpw.mods.fml.relauncher.Side;
 
 @Mod(
     modid = WawelAuth.MODID,
@@ -81,6 +85,21 @@ public class WawelAuth {
     @Mod.EventHandler
     public void serverStopping(FMLServerStoppingEvent event) {
         proxy.serverStopping(event);
+    }
+
+    /**
+     * Accepts any remote, as acceptableRemoteVersions = "*" does. On the client this is also where the server's WA
+     * version becomes known, which decides how an older server stores skin parts.
+     * <p>
+     * FML also calls this during mod construction to test vanilla acceptance, before the proxy is injected. It must
+     * never throw: FML treats an exception as a refusal.
+     */
+    @NetworkCheckHandler
+    public boolean checkRemote(Map<String, String> remoteMods, Side remoteSide) {
+        if (remoteSide == Side.SERVER && remoteMods != null && proxy != null) {
+            proxy.onServerModList(remoteMods.get(MODID));
+        }
+        return true;
     }
 
     public static boolean isDebugMode() {

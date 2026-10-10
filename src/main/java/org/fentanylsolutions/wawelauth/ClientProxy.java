@@ -11,6 +11,7 @@ import org.fentanylsolutions.wawelauth.client.gui.WawelAuthKeybind;
 import org.fentanylsolutions.wawelauth.client.gui.WawelAuthTooltipStyle;
 import org.fentanylsolutions.wawelauth.client.render.SkinResolverClientHandler;
 import org.fentanylsolutions.wawelauth.client.render.animatedcape.AnimatedCapeClientHandler;
+import org.fentanylsolutions.wawelauth.client.skin.sync.ClientSkinSync;
 import org.fentanylsolutions.wawelauth.wawelclient.WawelClient;
 import org.fentanylsolutions.wawelauth.wawelclient.WawelPingClientHooks;
 import org.fentanylsolutions.wawelauth.wawelcore.config.LocalConfig;
@@ -49,6 +50,7 @@ public class ClientProxy extends CommonProxy {
         GuiTransitionScheduler.register();
         AnimatedCapeClientHandler.register();
         SkinResolverClientHandler.register();
+        ClientSkinSync.register();
         WawelAuthTooltipStyle.register();
 
         // Window drag-and-drop detection (lwjgl3ify check is inside FentLib)
@@ -66,6 +68,11 @@ public class ClientProxy extends CommonProxy {
     @Override
     public void postInit(FMLPostInitializationEvent event) {
         MinecraftForge.EVENT_BUS.register(new GuiSkinCustomizationHandler());
+    }
+
+    @Override
+    public void onServerModList(String wawelVersion) {
+        ClientSkinSync.onServerModList(wawelVersion);
     }
 
     @Override

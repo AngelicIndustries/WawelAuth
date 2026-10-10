@@ -5,10 +5,6 @@ import com.gtnewhorizon.gtnhlib.config.Config;
 @Config(modid = "wawelauth", category = "skinlayers", configSubDirectory = "wawelauth")
 public class SkinLayersConfig {
 
-    @Config.Comment("Render cape.")
-    @Config.DefaultBoolean(true)
-    public static boolean enableCape = true;
-
     @Config.Comment("Render jacket layer.")
     @Config.DefaultBoolean(true)
     public static boolean enableJacket = true;

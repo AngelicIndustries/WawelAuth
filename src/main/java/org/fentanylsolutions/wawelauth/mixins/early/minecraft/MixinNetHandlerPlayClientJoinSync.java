@@ -9,6 +9,7 @@ import net.minecraft.client.network.NetHandlerPlayClient;
 import net.minecraft.network.play.server.S3FPacketCustomPayload;
 
 import org.fentanylsolutions.wawelauth.WawelAuth;
+import org.fentanylsolutions.wawelauth.client.skin.sync.ClientSkinSync;
 import org.fentanylsolutions.wawelauth.wawelclient.ConnectionProviderCache;
 import org.fentanylsolutions.wawelauth.wawelclient.IServerDataExt;
 import org.fentanylsolutions.wawelauth.wawelclient.ServerBindingPersistence;
@@ -18,6 +19,7 @@ import org.fentanylsolutions.wawelauth.wawelclient.WawelClient;
 import org.fentanylsolutions.wawelauth.wawelclient.data.ClientProvider;
 import org.fentanylsolutions.wawelauth.wawelcore.ping.PlayerProviderSyncPayload;
 import org.fentanylsolutions.wawelauth.wawelcore.ping.WawelCapabilitySyncPayload;
+import org.fentanylsolutions.wawelauth.wawelcore.skin.SkinPartFlags;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -40,6 +42,12 @@ public class MixinNetHandlerPlayClientJoinSync {
 
         if (PlayerProviderSyncPayload.CHANNEL.equals(channel)) {
             wawelauth$handlePlayerProviders(packetIn, ci);
+            return;
+        }
+
+        if (SkinPartFlags.CHANNEL.equals(channel)) {
+            ClientSkinSync.onServerProtocol(packetIn.func_149168_d());
+            ci.cancel();
         }
     }
 

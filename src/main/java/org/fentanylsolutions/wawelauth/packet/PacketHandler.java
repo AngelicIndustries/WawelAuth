@@ -27,6 +27,8 @@ public final class PacketHandler {
         register(ClipboardCopyPacket.Handler.class, ClipboardCopyPacket.class, Side.CLIENT);
         register(SkinInvalidatePacket.Handler.class, SkinInvalidatePacket.class, Side.CLIENT);
         register(UpdateSkinLayersPacket.Handler.class, UpdateSkinLayersPacket.class, Side.SERVER);
+        // Append only: discriminators are part of the protocol with older versions.
+        register(SetSkinPartsPacket.Handler.class, SetSkinPartsPacket.class, Side.SERVER);
         initialized = true;
     }
 
