@@ -1,4 +1,4 @@
-package org.fentanylsolutions.wawelauth.wawelserver.compat;
+package org.fentanylsolutions.wawelauth.compat.dynmap;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;

@@ -1,4 +1,4 @@
-package org.fentanylsolutions.wawelauth.wawelserver.compat;
+package org.fentanylsolutions.wawelauth.compat.serverutilities;
 
 import java.util.UUID;
 

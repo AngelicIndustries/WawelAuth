@@ -1,4 +1,4 @@
-package org.fentanylsolutions.wawelauth.client.compat;
+package org.fentanylsolutions.wawelauth.compat.etfuturum;
 
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.item.Item;

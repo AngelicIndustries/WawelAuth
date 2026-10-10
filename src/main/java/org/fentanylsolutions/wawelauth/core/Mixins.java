@@ -128,7 +128,7 @@ public class Mixins extends FentMixins {
             .phase(MixinUtil.Phase.EARLY)
             .side(MiscUtil.Side.CLIENT)
             .build();
-        registry.mixin("MixinImageBufferDownloadEars")
+        registry.mixin("compat.ears.MixinImageBufferDownloadEars")
             .phase(MixinUtil.Phase.EARLY)
             .side(MiscUtil.Side.CLIENT)
             .build();
@@ -150,7 +150,7 @@ public class Mixins extends FentMixins {
             .phase(MixinUtil.Phase.EARLY)
             .side(MiscUtil.Side.CLIENT)
             .build();
-        registry.mixin("MixinRenderingRegistry")
+        registry.mixin("compat.MixinRenderingRegistry")
             .phase(MixinUtil.Phase.EARLY)
             .side(MiscUtil.Side.CLIENT)
             .build();
@@ -160,7 +160,7 @@ public class Mixins extends FentMixins {
             .phase(MixinUtil.Phase.EARLY)
             .side(MiscUtil.Side.CLIENT)
             .build();
-        registry.mixin("MixinLocalTextureLoaderEars")
+        registry.mixin("compat.ears.MixinLocalTextureLoaderEars")
             .phase(MixinUtil.Phase.EARLY)
             .side(MiscUtil.Side.CLIENT)
             .build();
@@ -300,7 +300,7 @@ public class Mixins extends FentMixins {
             .side(MiscUtil.Side.CLIENT)
             .build();
 
-        registry.mixin("MixinMinecraftFoamFix")
+        registry.mixin("compat.ears.MixinMinecraftFoamFix")
             .phase(MixinUtil.Phase.EARLY)
             .side(MiscUtil.Side.CLIENT)
             .build();

@@ -2,7 +2,7 @@ package org.fentanylsolutions.wawelauth.mixins.late.ears;
 
 import java.util.UUID;
 
-import org.fentanylsolutions.wawelauth.client.render.EarsCompat;
+import org.fentanylsolutions.wawelauth.compat.ears.EarsCompat;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.injection.At;

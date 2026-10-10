@@ -1,4 +1,4 @@
-package org.fentanylsolutions.wawelauth.wawelclient.compat;
+package org.fentanylsolutions.wawelauth.compat.serverutilities;
 
 import net.minecraft.nbt.NBTTagCompound;
 

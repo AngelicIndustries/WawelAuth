@@ -5,7 +5,7 @@ import java.util.UUID;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.server.management.ServerConfigurationManager;
 
-import org.fentanylsolutions.wawelauth.wawelserver.compat.BetterQuestingCommandResolver;
+import org.fentanylsolutions.wawelauth.compat.betterquesting.BetterQuestingCommandResolver;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;

@@ -1,6 +1,6 @@
 package org.fentanylsolutions.wawelauth.mixins.late.serverutilities;
 
-import org.fentanylsolutions.wawelauth.wawelserver.compat.ServerUtilitiesForgePlayerResolver;
+import org.fentanylsolutions.wawelauth.compat.serverutilities.ServerUtilitiesForgePlayerResolver;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;

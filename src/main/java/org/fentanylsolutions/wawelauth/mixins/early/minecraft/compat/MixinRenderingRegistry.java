@@ -1,4 +1,4 @@
-package org.fentanylsolutions.wawelauth.mixins.early.minecraft;
+package org.fentanylsolutions.wawelauth.mixins.early.minecraft.compat;
 
 import java.util.Map;
 

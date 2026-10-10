@@ -1,10 +1,10 @@
-package org.fentanylsolutions.wawelauth.mixins.early.minecraft;
+package org.fentanylsolutions.wawelauth.mixins.early.minecraft.compat.ears;
 
 import java.awt.image.BufferedImage;
 
 import net.minecraft.client.renderer.ImageBufferDownload;
 
-import org.fentanylsolutions.wawelauth.client.render.EarsCompat;
+import org.fentanylsolutions.wawelauth.compat.ears.EarsCompat;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;

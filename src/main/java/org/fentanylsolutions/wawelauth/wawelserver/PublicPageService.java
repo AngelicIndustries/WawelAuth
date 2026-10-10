@@ -28,6 +28,7 @@ import org.fentanylsolutions.fentlib.util.StringUtil;
 import org.fentanylsolutions.wawelauth.Config;
 import org.fentanylsolutions.wawelauth.WawelAuth;
 import org.fentanylsolutions.wawelauth.api.WawelFaceRendererServer;
+import org.fentanylsolutions.wawelauth.compat.dynmap.DynmapSkinUrlResolver;
 import org.fentanylsolutions.wawelauth.wawelcore.config.FallbackServer;
 import org.fentanylsolutions.wawelauth.wawelcore.config.RegistrationPolicy;
 import org.fentanylsolutions.wawelauth.wawelcore.config.ServerConfig;
@@ -35,7 +36,6 @@ import org.fentanylsolutions.wawelauth.wawelcore.data.UuidUtil;
 import org.fentanylsolutions.wawelauth.wawelcore.data.WawelProfile;
 import org.fentanylsolutions.wawelauth.wawelnet.BinaryResponse;
 import org.fentanylsolutions.wawelauth.wawelnet.HttpRouter;
-import org.fentanylsolutions.wawelauth.wawelserver.compat.DynmapSkinUrlResolver;
 
 import com.mojang.authlib.GameProfile;
 

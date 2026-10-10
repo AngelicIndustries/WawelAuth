@@ -1,4 +1,4 @@
-package org.fentanylsolutions.wawelauth.client.render;
+package org.fentanylsolutions.wawelauth.compat.ears;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -23,6 +23,7 @@ import net.minecraft.util.ResourceLocation;
 
 import org.fentanylsolutions.wawelauth.WawelAuth;
 import org.fentanylsolutions.wawelauth.api.WawelTextureResolver;
+import org.fentanylsolutions.wawelauth.client.render.SkinModelHelper;
 import org.fentanylsolutions.wawelauth.client.render.skinlayers.SkinLayers3DConfig;
 import org.fentanylsolutions.wawelauth.wawelclient.WawelClient;
 import org.fentanylsolutions.wawelauth.wawelclient.data.ClientProvider;

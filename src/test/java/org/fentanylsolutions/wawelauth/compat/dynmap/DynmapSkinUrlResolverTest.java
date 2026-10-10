@@ -1,9 +1,8 @@
-package org.fentanylsolutions.wawelauth.wawelserver;
+package org.fentanylsolutions.wawelauth.compat.dynmap;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
-import org.fentanylsolutions.wawelauth.wawelserver.compat.DynmapSkinUrlResolver;
 import org.junit.Assert;
 import org.junit.Test;
 

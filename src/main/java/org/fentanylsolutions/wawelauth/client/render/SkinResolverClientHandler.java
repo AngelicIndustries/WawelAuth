@@ -24,6 +24,7 @@ import net.minecraftforge.event.world.WorldEvent;
 import org.fentanylsolutions.wawelauth.api.SkinLayersHelper;
 import org.fentanylsolutions.wawelauth.client.render.skinlayers.SkinLayers3DConfig;
 import org.fentanylsolutions.wawelauth.client.render.skinlayers.SkinLayers3DSetup;
+import org.fentanylsolutions.wawelauth.compat.ears.EarsCompat;
 import org.fentanylsolutions.wawelauth.wawelclient.WawelClient;
 
 import cpw.mods.fml.common.FMLCommonHandler;

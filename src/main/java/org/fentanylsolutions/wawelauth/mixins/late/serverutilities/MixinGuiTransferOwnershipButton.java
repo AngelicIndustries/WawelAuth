@@ -2,7 +2,7 @@ package org.fentanylsolutions.wawelauth.mixins.late.serverutilities;
 
 import net.minecraft.nbt.NBTTagCompound;
 
-import org.fentanylsolutions.wawelauth.wawelclient.compat.ServerUtilitiesTeamGuiPlayerKeys;
+import org.fentanylsolutions.wawelauth.compat.serverutilities.ServerUtilitiesTeamGuiPlayerKeys;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;

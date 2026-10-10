@@ -1,4 +1,4 @@
-package org.fentanylsolutions.wawelauth.mixins.early.minecraft;
+package org.fentanylsolutions.wawelauth.mixins.early.minecraft.compat.ears;
 
 import java.lang.reflect.Field;
 
@@ -6,7 +6,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.launchwrapper.Launch;
 
 import org.fentanylsolutions.wawelauth.WawelAuth;
-import org.fentanylsolutions.wawelauth.client.render.EarsCompat;
+import org.fentanylsolutions.wawelauth.compat.ears.EarsCompat;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;

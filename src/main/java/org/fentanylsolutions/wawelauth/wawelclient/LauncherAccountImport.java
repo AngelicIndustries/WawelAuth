@@ -12,7 +12,7 @@ import net.minecraft.util.Session;
 import org.fentanylsolutions.fentlib.util.StringUtil;
 import org.fentanylsolutions.wawelauth.WawelAuth;
 import org.fentanylsolutions.wawelauth.client.gui.LauncherImportPromptHandler;
-import org.fentanylsolutions.wawelauth.wawelclient.compat.AuthlibInjectorCompat;
+import org.fentanylsolutions.wawelauth.compat.authlibinjector.AuthlibInjectorCompat;
 import org.fentanylsolutions.wawelauth.wawelclient.data.AccountStatus;
 import org.fentanylsolutions.wawelauth.wawelclient.data.ClientAccount;
 import org.fentanylsolutions.wawelauth.wawelclient.data.ClientProvider;
