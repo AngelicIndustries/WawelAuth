@@ -29,15 +29,26 @@ public class VoxelSurfaceBuilder {
     private static final class Dimensions {
 
         private final int width;
+        /** Height of the slice being built. */
         private final int height;
         private final int depth;
+        /** First box row of the slice; side faces read their texture from here. */
+        private final int rowStart;
+        private final boolean topCap;
+        private final boolean bottomCap;
 
-        private Dimensions(int width, int height, int depth) {
+        private Dimensions(int width, int height, int depth, int rowStart, boolean topCap, boolean bottomCap) {
             this.width = width;
             this.height = height;
             this.depth = depth;
+            this.rowStart = rowStart;
+            this.topCap = topCap;
+            this.bottomCap = bottomCap;
         }
     }
+
+    /** Texture coordinate that is never present, used for caps a slice cuts through. */
+    private static final UV ABSENT = new UV(-1, -1);
 
     private static final class Position {
 
@@ -67,13 +78,40 @@ public class VoxelSurfaceBuilder {
 
     public static VoxelBuilder wrapBox(VoxelBuilder builder, VoxelTexture textureData, int width, int height, int depth,
         int textureU, int textureV, boolean topPivot, float rotationOffset) {
-        builder.textureSize(textureData.getWidth(), textureData.getHeight());
-        float staticXOffset = -width / 2.0F;
         float staticYOffset = topPivot ? +rotationOffset : -height + rotationOffset;
-        float staticZOffset = -depth / 2.0F;
+        return wrapSlice(
+            builder,
+            textureData,
+            width,
+            height,
+            depth,
+            textureU,
+            textureV,
+            0,
+            height,
+            -width / 2.0F,
+            staticYOffset,
+            -depth / 2.0F);
+    }
 
-        Position staticOffset = new Position(staticXOffset, staticYOffset, staticZOffset);
-        Dimensions dimensions = new Dimensions(width, height, depth);
+    /**
+     * Wraps rows {@code rowStart} to {@code rowEnd} of a {@code width x height x depth} box whose texture starts at
+     * {@code textureU, textureV}. The slice's minimum corner lands at {@code originX, originY, originZ} (pixels). Side
+     * faces read the texture of their own rows; the top and bottom caps exist only where the slice reaches the box's
+     * ends, so a cut through a limb stays open, like an elbow or a knee.
+     */
+    public static VoxelBuilder wrapSlice(VoxelBuilder builder, VoxelTexture textureData, int width, int height,
+        int depth, int textureU, int textureV, int rowStart, int rowEnd, float originX, float originY, float originZ) {
+        builder.textureSize(textureData.getWidth(), textureData.getHeight());
+
+        Position staticOffset = new Position(originX, originY, originZ);
+        Dimensions dimensions = new Dimensions(
+            width,
+            rowEnd - rowStart,
+            depth,
+            rowStart,
+            rowStart == 0,
+            rowEnd == height);
         UV textureUV = new UV(textureU, textureV);
 
         for (Direction face : Direction.values()) {
@@ -98,27 +136,27 @@ public class VoxelSurfaceBuilder {
         return new UV(dimensions.depth, dimensions.height);
     }
 
+    /** DOWN is the box's top cap (y = 0) and UP its bottom cap, since model space points down. */
     private static UV getOnTextureUV(UV textureUV, UV onFaceUV, Dimensions dimensions, Direction face) {
         if (face == Direction.DOWN) {
+            if (!dimensions.topCap) return ABSENT;
             return new UV(textureUV.u + dimensions.depth + onFaceUV.u, textureUV.v + onFaceUV.v);
         }
         if (face == Direction.UP) {
+            if (!dimensions.bottomCap) return ABSENT;
             return new UV(textureUV.u + dimensions.width + dimensions.depth + onFaceUV.u, textureUV.v + onFaceUV.v);
         }
+        int sideV = textureUV.v + dimensions.depth + dimensions.rowStart + onFaceUV.v;
         if (face == Direction.NORTH) {
-            return new UV(textureUV.u + dimensions.depth + onFaceUV.u, textureUV.v + dimensions.depth + onFaceUV.v);
+            return new UV(textureUV.u + dimensions.depth + onFaceUV.u, sideV);
         }
         if (face == Direction.SOUTH) {
-            return new UV(
-                textureUV.u + dimensions.depth + dimensions.width + dimensions.depth + onFaceUV.u,
-                textureUV.v + dimensions.depth + onFaceUV.v);
+            return new UV(textureUV.u + dimensions.depth + dimensions.width + dimensions.depth + onFaceUV.u, sideV);
         }
         if (face == Direction.WEST) {
-            return new UV(textureUV.u + onFaceUV.u, textureUV.v + dimensions.depth + onFaceUV.v);
+            return new UV(textureUV.u + onFaceUV.u, sideV);
         }
-        return new UV(
-            textureUV.u + dimensions.depth + dimensions.width + onFaceUV.u,
-            textureUV.v + dimensions.depth + onFaceUV.v);
+        return new UV(textureUV.u + dimensions.depth + dimensions.width + onFaceUV.u, sideV);
     }
 
     private static VoxelPosition uvToXYZ(UV onFaceUV, Dimensions dimensions, Direction face) {
