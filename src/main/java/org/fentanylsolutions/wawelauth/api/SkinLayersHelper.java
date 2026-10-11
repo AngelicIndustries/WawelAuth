@@ -87,6 +87,13 @@ public class SkinLayersHelper {
         writeFlags(player, SkinPartFlags.composeCape(flags, isCapeHiddenByEquipment(player)));
     }
 
+    /** Local preview entities: something other than the wearer hides the cape, such as a previewed elytra. */
+    public static void setCapeHiddenByEquipment(EntityPlayer player, boolean hidden) {
+        if (player instanceof IPlayerCapeState state) {
+            state.wawelauth$setCapeHiddenByEquipment(hidden);
+        }
+    }
+
     /** Server side: the wearer's cape choice from the vanilla client settings packet. */
     public static void setWearerCapeHidden(EntityPlayer player, boolean hidden) {
         int flags = SkinPartFlags.withWearerCape(readFlags(player), hidden);

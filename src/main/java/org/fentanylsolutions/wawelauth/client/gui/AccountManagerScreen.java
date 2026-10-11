@@ -1692,7 +1692,8 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
         PreviewBackMode normalizedMode = normalizeCapePreviewMode(mode);
         boolean useElytra = normalizedMode == PreviewBackMode.ELYTRA;
         entity.setCapeVisible(normalizedMode != PreviewBackMode.NONE);
-        SkinLayersHelper.setSkinLayerHidden(entity, SkinLayersHelper.EnumPlayerModelParts.CAPE, useElytra);
+        // The previewed elytra hides the cape as equipment, so it still shows the cape texture.
+        SkinLayersHelper.setCapeHiddenByEquipment(entity, useElytra);
         EtFuturumCompat.applyPreviewElytra(entity, useElytra);
     }
 
@@ -2099,7 +2100,7 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
             entity.setForcedCape(previewTexture);
         }
         entity.setCapeVisible(true);
-        SkinLayersHelper.setSkinLayerHidden(entity, SkinLayersHelper.EnumPlayerModelParts.CAPE, false);
+        SkinLayersHelper.setCapeHiddenByEquipment(entity, false);
         EtFuturumCompat.applyPreviewElytra(entity, false);
         if (account != null && ProviderDisplayName.isOfflineProvider(account.getProviderName())) {
             entity.setForcedSkinModel(account.getLocalSkinModel());

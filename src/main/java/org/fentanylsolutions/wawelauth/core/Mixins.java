@@ -281,6 +281,11 @@ public class Mixins extends FentMixins {
             .phase(MixinUtil.Phase.LATE)
             .side(MiscUtil.Side.CLIENT)
             .build();
+        registry.mixin("MixinLayerBetterElytra")
+            .modid("etfuturum")
+            .phase(MixinUtil.Phase.LATE)
+            .side(MiscUtil.Side.CLIENT)
+            .build();
 
         registry.mixin("MixinAetherItemRenderer")
             .modid("aether_legacy")

@@ -1,8 +1,11 @@
 package org.fentanylsolutions.wawelauth.compat.etfuturum;
 
+import net.minecraft.client.entity.AbstractClientPlayer;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+
+import org.fentanylsolutions.wawelauth.client.skin.sync.ClientSkinSync;
 
 import cpw.mods.fml.common.Loader;
 import cpw.mods.fml.common.registry.GameRegistry;
@@ -19,6 +22,14 @@ public final class EtFuturumCompat {
     private static Item cachedElytraItem;
 
     private EtFuturumCompat() {}
+
+    /**
+     * EFR skins the elytra with the cape whenever the player has one. Modern versions only do so while the wearer
+     * shows their cape. Where the server does not separate the wearer's choice from equipment, EFR's behavior stays.
+     */
+    public static boolean elytraUsesCape(AbstractClientPlayer player, boolean hasCape) {
+        return hasCape && !ClientSkinSync.isCapeHiddenByWearer(player);
+    }
 
     public static boolean isPreviewElytraAvailable() {
         return getElytraItem() != null;

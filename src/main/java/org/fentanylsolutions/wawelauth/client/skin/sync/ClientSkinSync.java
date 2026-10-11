@@ -102,6 +102,21 @@ public final class ClientSkinSync {
         return layout.isHidden(SkinLayersHelper.readFlags(player), part);
     }
 
+    /**
+     * Whether the wearer chose to hide their cape, as opposed to equipment such as an elytra hiding it. False when
+     * unknown: vanilla and older WA servers mix both into one bit.
+     */
+    public static boolean isCapeHiddenByWearer(EntityPlayer player) {
+        SkinPartLayout layout = currentLayout();
+        if (player instanceof PlayerPreviewEntity || layout == SkinPartLayout.V2) {
+            return (SkinLayersHelper.readFlags(player) & SkinPartFlags.WEARER_CAPE_MASK) != 0;
+        }
+        if (!serverStoresParts(layout) && player == Minecraft.getMinecraft().thePlayer) {
+            return WearerSkinSettings.isHidden(SkinPart.CAPE);
+        }
+        return false;
+    }
+
     @SubscribeEvent
     public void onDisconnect(FMLNetworkEvent.ClientDisconnectionFromServerEvent event) {
         serverWawelVersion = null;
