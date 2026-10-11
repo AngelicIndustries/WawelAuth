@@ -39,6 +39,8 @@ public class ProviderThreadDownloadImageData extends ThreadDownloadImageData {
     private final ProviderProxySettings proxySettings;
     private final String providerName;
     public BufferedImage bufferedImage;
+    /** The image as decoded, before the image buffer processed it. Written before {@link #bufferedImage}. */
+    private volatile BufferedImage originalImage;
     private Thread imageThread;
 
     public ProviderThreadDownloadImageData(File cacheFile, String imageUrl, ResourceLocation textureLocation,
@@ -59,6 +61,10 @@ public class ProviderThreadDownloadImageData extends ThreadDownloadImageData {
         this.imageBuffer = imageBuffer;
         this.proxySettings = copySettings(proxySettings);
         this.providerName = providerName;
+    }
+
+    public BufferedImage getOriginalImage() {
+        return originalImage;
     }
 
     @Override
@@ -82,6 +88,7 @@ public class ProviderThreadDownloadImageData extends ThreadDownloadImageData {
 
             try {
                 BufferedImage cachedImage = ImageIO.read(cacheFile);
+                originalImage = cachedImage;
                 if (imageBuffer != null) {
                     cachedImage = imageBuffer.parseUserSkin(cachedImage);
                 }
@@ -147,6 +154,7 @@ public class ProviderThreadDownloadImageData extends ThreadDownloadImageData {
                         downloadedImage = ImageIO.read(new ByteArrayInputStream(imageBytes));
                     }
 
+                    originalImage = downloadedImage;
                     if (imageBuffer != null) {
                         downloadedImage = imageBuffer.parseUserSkin(downloadedImage);
                     }
