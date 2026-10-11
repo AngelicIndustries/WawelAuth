@@ -28,7 +28,6 @@ import org.fentanylsolutions.wawelauth.client.fakeworld.DummyEntityClientPlayerM
 import org.fentanylsolutions.wawelauth.client.fakeworld.DummyWorldClient;
 import org.fentanylsolutions.wawelauth.client.fakeworld.PreviewEntityRenderContext;
 import org.fentanylsolutions.wawelauth.client.render.LocalTextureLoader;
-import org.fentanylsolutions.wawelauth.client.render.skinlayers.SkinLayers3DSetup;
 import org.fentanylsolutions.wawelauth.compat.ears.EarsCompat;
 import org.fentanylsolutions.wawelauth.compat.etfuturum.EtFuturumCompat;
 import org.fentanylsolutions.wawelauth.wawelclient.IServerDataExt;
@@ -1882,7 +1881,7 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
                 dialogPreview.close();
             }
             if (skin) {
-                SkinLayers3DSetup.updateState(previewProfileId, null);
+                // Voxel meshes of the throwaway preview profile are evicted once it is no longer drawn.
                 EarsCompat.removeCachedSkin(previewProfileId);
             }
         });

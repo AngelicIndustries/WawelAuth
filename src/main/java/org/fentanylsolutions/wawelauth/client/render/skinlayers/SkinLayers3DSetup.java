@@ -7,7 +7,6 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.entity.AbstractClientPlayer;
 import net.minecraft.client.renderer.texture.ITextureObject;
 import net.minecraft.util.ResourceLocation;
 
@@ -20,7 +19,6 @@ import org.fentanylsolutions.wawelauth.client.skin.voxel.VoxelCube;
 import org.fentanylsolutions.wawelauth.client.skin.voxel.VoxelCubeCollector;
 import org.fentanylsolutions.wawelauth.client.skin.voxel.VoxelMesh;
 import org.fentanylsolutions.wawelauth.client.skin.voxel.VoxelSurfaceBuilder;
-import org.fentanylsolutions.wawelauth.wawelclient.WawelClient;
 
 import com.mojang.authlib.GameProfile;
 
@@ -51,122 +49,6 @@ public class SkinLayers3DSetup {
     public static SkullMeshCache getSkullCache(UUID uuid) {
         if (uuid == null) return null;
         return skullCache.get(uuid);
-    }
-
-    /** Cache for player 3d state keyed by GameProfile. */
-    private static final Map<UUID, SkinLayers3DState> skinLayersStateCache = new ConcurrentHashMap<>();
-
-    public static void clearState() {
-        skinLayersStateCache.values()
-            .forEach(state -> { if (state != null) state.cleanup(); });
-        skinLayersStateCache.clear();
-    }
-
-    public static void updateState(UUID uuid, SkinLayers3DState newState) {
-        if (uuid == null) return;
-        SkinLayers3DState oldState = (newState == null) ? skinLayersStateCache.remove(uuid)
-            : skinLayersStateCache.put(uuid, newState);
-        if (oldState != null && oldState != newState) {
-            oldState.cleanup();
-        }
-    }
-
-    public static SkinLayers3DState getState(UUID uuid) {
-        if (uuid == null) return null;
-        return skinLayersStateCache.get(uuid);
-    }
-
-    /**
-     * Create or update 3D skin layer meshes for a player.
-     *
-     * @param player   the player to generate meshes for
-     * @param existing existing state (may be null)
-     * @param slim     whether the player uses slim arms
-     * @return the updated state, or null if mesh generation failed
-     */
-    public static SkinLayers3DState createOrUpdate(AbstractClientPlayer player, SkinLayers3DState existing,
-        boolean slim) {
-
-        WawelClient client = WawelClient.instance();
-        if (client == null) return null;
-
-        ResourceLocation skinLocation = client.getTextureResolver()
-            .getSkin(
-                player.getUniqueID(),
-                player.getDisplayName(),
-                client.resolvePlayerProvider(player.getUniqueID()),
-                false);
-        if (skinLocation == null) return null;
-
-        // Check if skin hasn't changed and slim matches
-        if (existing != null && existing.initialized
-            && skinLocation.equals(existing.lastSkinLocation)
-            && slim == existing.slim) {
-            return existing;
-        }
-
-        // Get the BufferedImage from the skin texture
-        BufferedImage skinImage = getSkinImage(skinLocation);
-        if (skinImage == null) {
-            return null;
-        }
-
-        // Validate: must be 64x64 (skip HD skins per README FAQ)
-        if (skinImage.getWidth() != 64 || skinImage.getHeight() != 64) {
-            return null;
-        }
-
-        // Cleanup old state
-        if (existing != null) {
-            existing.cleanup();
-        }
-
-        SkinLayers3DState state = new SkinLayers3DState();
-        state.lastSkinLocation = skinLocation;
-        state.slim = slim;
-
-        try {
-            ImageVoxelTexture skinData = new ImageVoxelTexture(skinImage);
-
-            // Hat: 8x8x8, UV (32,0), topPivot=false, offset=0.6
-            if (SkinLayers3DConfig.enableHat3D) {
-                state.hatMesh = buildMesh(skinData, 8, 8, 8, 32, 0, false, 0.6f);
-            }
-
-            // Jacket: 8x12x4, UV (16,32), topPivot=true, offset=0
-            if (SkinLayers3DConfig.enableJacket3D) {
-                state.jacketMesh = buildMesh(skinData, 8, 12, 4, 16, 32, true, 0f);
-            }
-
-            // Right sleeve
-            if (SkinLayers3DConfig.enableRightSleeve3D) {
-                int armWidth = slim ? 3 : 4;
-                state.rightSleeveMesh = buildMesh(skinData, armWidth, 12, 4, 40, 32, true, -2f);
-            }
-
-            // Left sleeve
-            if (SkinLayers3DConfig.enableLeftSleeve3D) {
-                int armWidth = slim ? 3 : 4;
-                state.leftSleeveMesh = buildMesh(skinData, armWidth, 12, 4, 48, 48, true, -2f);
-            }
-
-            // Right pants: 4x12x4, UV (0,32), topPivot=true, offset=0
-            if (SkinLayers3DConfig.enableRightPants3D) {
-                state.rightPantsMesh = buildMesh(skinData, 4, 12, 4, 0, 32, true, 0f);
-            }
-
-            // Left pants: 4x12x4, UV (0,48), topPivot=true, offset=0
-            if (SkinLayers3DConfig.enableLeftPants3D) {
-                state.leftPantsMesh = buildMesh(skinData, 4, 12, 4, 0, 48, true, 0f);
-            }
-
-            state.initialized = true;
-            return state;
-        } catch (Exception e) {
-            WawelAuth.LOG.error("Failed to build 3D skin layer meshes", e);
-            state.cleanup();
-            return null;
-        }
     }
 
     /**

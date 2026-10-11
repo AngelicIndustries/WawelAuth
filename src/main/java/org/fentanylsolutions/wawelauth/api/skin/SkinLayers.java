@@ -1,6 +1,6 @@
 package org.fentanylsolutions.wawelauth.api.skin;
 
-import net.minecraft.client.entity.AbstractClientPlayer;
+import net.minecraft.entity.Entity;
 
 import org.fentanylsolutions.wawelauth.client.skin.layers.LayerDraws;
 
@@ -22,8 +22,12 @@ public final class SkinLayers {
 
     private SkinLayers() {}
 
-    public static LayerDraw begin(AbstractClientPlayer player, DrawKind kind, float scale) {
-        return LayerDraws.begin(player, kind, scale);
+    /**
+     * Opens a draw for an entity's layers. Players get the full treatment; any other entity drawn with a player model
+     * (Botania's Gaia Guardian, a Twilight Forest giant) gets flat layers with every part shown.
+     */
+    public static LayerDraw begin(Entity entity, DrawKind kind, float scale) {
+        return LayerDraws.begin(entity, kind, scale);
     }
 
     /**

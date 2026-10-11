@@ -1,13 +1,14 @@
 package org.fentanylsolutions.wawelauth.mixins.late.aether_legacy;
 
-import static org.fentanylsolutions.wawelauth.api.SkinLayersHelper.EnumPlayerModelParts.RIGHT_SLEEVE;
-
+import net.minecraft.client.entity.AbstractClientPlayer;
 import net.minecraft.client.model.ModelBiped;
 import net.minecraft.client.model.ModelRenderer;
 import net.minecraft.client.renderer.entity.RenderPlayer;
 import net.minecraft.entity.player.EntityPlayer;
 
-import org.fentanylsolutions.wawelauth.client.render.IModelBipedModernExt;
+import org.fentanylsolutions.wawelauth.api.skin.DrawKind;
+import org.fentanylsolutions.wawelauth.api.skin.LayerDraw;
+import org.fentanylsolutions.wawelauth.api.skin.SkinLayers;
 import org.lwjgl.opengl.GL11;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Pseudo;
@@ -34,12 +35,14 @@ public abstract class MixinAetherItemRenderer {
         require = 1,
         remap = false)
     private void wawelauth$renderArmWithoutSleeve(RenderPlayer renderer, EntityPlayer player) {
-        IModelBipedModernExt ext = (IModelBipedModernExt) renderer.modelBipedMain;
-        ext.hidePart(RIGHT_SLEEVE, true);
-        try {
+        if (!(player instanceof AbstractClientPlayer client)) {
             renderer.renderFirstPersonArm(player);
-        } finally {
-            ext.hidePart(RIGHT_SLEEVE, false);
+            return;
+        }
+        // The arm's own sleeve draw opens inside this one and inherits the suppression.
+        try (LayerDraw draw = SkinLayers.begin(client, DrawKind.FIRST_PERSON, 0.0625F)) {
+            draw.suppress();
+            renderer.renderFirstPersonArm(player);
         }
     }
 

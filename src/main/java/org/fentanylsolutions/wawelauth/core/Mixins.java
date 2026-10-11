@@ -142,11 +142,15 @@ public class Mixins extends FentMixins {
             .build();
 
         // Client Mixins: modern skin rendering
-        registry.mixin("MixinModelBiped")
+        registry.mixin("MixinRenderPlayer")
             .phase(MixinUtil.Phase.EARLY)
             .side(MiscUtil.Side.CLIENT)
             .build();
-        registry.mixin("MixinRenderPlayer")
+        registry.mixin("compat.ears.MixinRenderPlayerEars")
+            .phase(MixinUtil.Phase.EARLY)
+            .side(MiscUtil.Side.CLIENT)
+            .build();
+        registry.mixin("AccessorRendererLivingEntity")
             .phase(MixinUtil.Phase.EARLY)
             .side(MiscUtil.Side.CLIENT)
             .build();

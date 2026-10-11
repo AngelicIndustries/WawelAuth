@@ -9,8 +9,9 @@ import net.minecraft.client.renderer.entity.RenderManager;
 import net.minecraft.client.renderer.entity.RenderPlayer;
 import net.minecraft.entity.Entity;
 
-import org.fentanylsolutions.wawelauth.client.render.IModelBipedModernExt;
 import org.fentanylsolutions.wawelauth.client.render.skinlayers.SkinLayers3DConfig;
+import org.fentanylsolutions.wawelauth.client.skin.model.ModelPlayer;
+import org.fentanylsolutions.wawelauth.mixins.early.minecraft.AccessorRendererLivingEntity;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -20,29 +21,28 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import cpw.mods.fml.client.registry.RenderingRegistry;
 
 /**
- * Taken from <a href="https://github.com/Roadhog360/SimpleSkinBackport">SimpleSkinBackport</a>
- * [MIT License]
+ * Renderers that draw some other entity with a player's skin (Botania's Gaia Guardian, the Twilight Forest giant) get
+ * a {@link ModelPlayer} too, so 64x64 skins map correctly. Taken from
+ * <a href="https://github.com/Roadhog360/SimpleSkinBackport">SimpleSkinBackport</a> [MIT License].
  */
 @Mixin(value = RenderingRegistry.class, priority = 999)
 public class MixinRenderingRegistry {
 
     @Inject(method = "loadEntityRenderers", at = @At(value = "TAIL"), remap = false)
     private void setupModernModels(Map<Class<? extends Entity>, Render> rendererMap, CallbackInfo ci) {
-        if (SkinLayers3DConfig.modernSkinSupport) {
-            RenderManager.instance.entityRenderMap.forEach((entityClass, renderer) -> {
-                ModelBiped modelBiped = null;
-                if (renderer instanceof RenderPlayer renderPlayer) {
-                    modelBiped = renderPlayer.modelBipedMain;
-                } else if (renderer instanceof RenderBiped renderBiped) {
-                    modelBiped = renderBiped.modelBipedMain;
-                }
-                if (modelBiped instanceof IModelBipedModernExt bipedExtended) {
-                    if (wawelAuth$rendererCopiesPlayerSkin(renderer)) {
-                        bipedExtended.initModern();
-                    }
-                }
-            });
-        }
+        if (!SkinLayers3DConfig.modernSkinSupport) return;
+        RenderManager.instance.entityRenderMap.forEach((entityClass, renderer) -> {
+            if (!wawelAuth$rendererCopiesPlayerSkin(renderer)) return;
+            ModelBiped model = new ModelPlayer(0.0F);
+            if (renderer instanceof RenderPlayer renderPlayer) {
+                renderPlayer.modelBipedMain = model;
+            } else if (renderer instanceof RenderBiped renderBiped) {
+                renderBiped.modelBipedMain = model;
+            } else {
+                return;
+            }
+            ((AccessorRendererLivingEntity) renderer).wawelauth$setMainModel(model);
+        });
     }
 
     @Unique

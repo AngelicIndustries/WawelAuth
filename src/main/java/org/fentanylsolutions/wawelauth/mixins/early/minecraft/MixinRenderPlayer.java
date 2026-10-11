@@ -1,31 +1,28 @@
 package org.fentanylsolutions.wawelauth.mixins.early.minecraft;
 
-import java.util.UUID;
-
 import net.minecraft.client.entity.AbstractClientPlayer;
 import net.minecraft.client.model.ModelBiped;
 import net.minecraft.client.renderer.entity.RenderPlayer;
 import net.minecraft.entity.player.EntityPlayer;
 
-import org.fentanylsolutions.wawelauth.api.SkinLayersHelper;
-import org.fentanylsolutions.wawelauth.client.render.IModelBipedModernExt;
+import org.fentanylsolutions.wawelauth.api.skin.DrawKind;
+import org.fentanylsolutions.wawelauth.api.skin.LayerDraw;
+import org.fentanylsolutions.wawelauth.api.skin.SkinLayers;
 import org.fentanylsolutions.wawelauth.client.render.SkinModelHelper;
 import org.fentanylsolutions.wawelauth.client.render.skinlayers.SkinLayers3DConfig;
-import org.fentanylsolutions.wawelauth.client.render.skinlayers.SkinLayers3DSetup;
-import org.fentanylsolutions.wawelauth.client.render.skinlayers.SkinLayers3DState;
+import org.fentanylsolutions.wawelauth.client.skin.model.ModelPlayer;
 import org.fentanylsolutions.wawelauth.compat.ears.EarsCompat;
-import org.fentanylsolutions.wawelauth.wawelcore.data.SkinModel;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * Hooks into RenderPlayer to initialize the modern 64x64 model,
- * swap between slim/classic arms per player, render first-person arm overlay,
- * and manage 3D skin layer state per player.
- */
+import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+
+/** Installs {@link ModelPlayer} in the vanilla player renderer and keeps it on each drawn player's skin model. */
 @Mixin(RenderPlayer.class)
 public class MixinRenderPlayer {
 
@@ -33,155 +30,38 @@ public class MixinRenderPlayer {
     public ModelBiped modelBipedMain;
 
     /**
-     * Initialize the main player model for modern 64x64 rendering.
-     * Called once during RenderPlayer construction. Only affects modelBipedMain,
-     * not armor models (modelArmorChestplate, modelArmor).
+     * The constructor's first model becomes both {@code mainModel} and {@code modelBipedMain}. Subclasses that install
+     * their own model afterwards keep it. With Ears active, Ears owns the player model.
      */
-    @Inject(method = "<init>", at = @At("RETURN"))
-    private void wawelauth$initModernModel(CallbackInfo ci) {
-        if (SkinLayers3DConfig.modernSkinSupport && !EarsCompat.isRendererActive()) {
-            ((IModelBipedModernExt) this.modelBipedMain).initModern();
+    @Redirect(method = "<init>", at = @At(value = "NEW", target = "net/minecraft/client/model/ModelBiped", ordinal = 0))
+    private static ModelBiped wawelauth$installModelPlayer(float scale) {
+        if (!SkinLayers3DConfig.modernSkinSupport || EarsCompat.isRendererActive()) {
+            return new ModelBiped(scale);
         }
+        return new ModelPlayer(scale);
     }
 
-    /**
-     * Before rendering each player, detect their skin model type from the
-     * GameProfile textures property and swap arm ModelRenderers accordingly.
-     * Also set up 3D skin layer meshes if the player is within LOD range.
-     */
     @Inject(method = "doRender(Lnet/minecraft/client/entity/AbstractClientPlayer;DDDFF)V", at = @At("HEAD"))
-    private void wawelauth$setSlimPerPlayer(AbstractClientPlayer player, double x, double y, double z, float yaw,
+    private void wawelauth$applySkinModel(AbstractClientPlayer player, double x, double y, double z, float yaw,
         float partialTicks, CallbackInfo ci) {
-        IModelBipedModernExt ext = (IModelBipedModernExt) this.modelBipedMain;
-        UUID uuid = player.getUniqueID();
-        ext.setCurrentPlayerUuid(uuid);
-
-        if (EarsCompat.isRendererActive()) {
-            EarsCompat.applySkinModel((RenderPlayer) (Object) this, player);
-            SkinLayers3DSetup.updateState(uuid, null);
-            return;
-        }
-
-        if (!SkinLayers3DConfig.modernSkinSupport) {
-            ext.setSlim(false);
-            SkinLayers3DSetup.updateState(uuid, null);
-            return;
-        }
-
-        if (!ext.isModern()) ext.initModern();
-
-        SkinModel model = SkinModelHelper.getSkinModel(player);
-        boolean slim = model == SkinModel.SLIM;
-        ext.setSlim(slim);
-
-        if (!SkinLayers3DConfig.enabled3D) {
-            SkinLayers3DSetup.updateState(uuid, null);
-            return;
-        }
-
-        // 3D skin layers: check LOD distance
-        double distSq = x * x + y * y + z * z;
-        int lodDist = SkinLayers3DConfig.renderDistanceLOD;
-        if (distSq < (double) lodDist * lodDist) {
-            SkinLayers3DState existing = SkinLayers3DSetup.getState(uuid);
-            SkinLayers3DState state = SkinLayers3DSetup.createOrUpdate(player, existing, slim);
-            SkinLayers3DSetup.updateState(uuid, state);
-        } else {
-            // Beyond LOD range: fall back to 2D overlays
-            SkinLayers3DSetup.updateState(uuid, null);
+        if (this.modelBipedMain instanceof ModelPlayer model) {
+            model.setSkinModel(SkinModelHelper.getSkinModel(player));
         }
     }
 
     /**
-     * Ears selects its arm model at the start of this method using Mojang's legacy lookup. Run after that hook and
-     * before vanilla renders the model so WawelAuth's provider-aware slim metadata wins.
+     * The first-person arm gets its sleeve; the draw stays open around the arm so the arm's renderers can suppress it.
      */
-    @Inject(
-        method = "doRender(Lnet/minecraft/client/entity/AbstractClientPlayer;DDDFF)V",
-        at = @At(
-            value = "INVOKE",
-            target = "Lnet/minecraft/client/renderer/entity/RendererLivingEntity;doRender(Lnet/minecraft/entity/EntityLivingBase;DDDFF)V"))
-    private void wawelauth$applyEarsSkinModel(AbstractClientPlayer player, double x, double y, double z, float yaw,
-        float partialTicks, CallbackInfo ci) {
-        EarsCompat.applySkinModel((RenderPlayer) (Object) this, player);
-    }
-
-    /**
-     * Set slim/classic before first-person arm rendering.
-     */
-    @Inject(method = "renderFirstPersonArm", at = @At("HEAD"))
-    private void wawelauth$setSlimFirstPersonArm(EntityPlayer player, CallbackInfo ci) {
-        IModelBipedModernExt ext = (IModelBipedModernExt) this.modelBipedMain;
-        UUID uuid = player.getUniqueID();
-        ext.setCurrentPlayerUuid(uuid);
-        SkinLayers3DState state;
-
-        if (EarsCompat.isRendererActive()) {
-            if (player instanceof AbstractClientPlayer clientPlayer) {
-                EarsCompat.applySkinModel((RenderPlayer) (Object) this, clientPlayer);
-            }
-            SkinLayers3DSetup.updateState(uuid, null);
+    @WrapMethod(method = "renderFirstPersonArm")
+    private void wawelauth$firstPersonSleeve(EntityPlayer player, Operation<Void> original) {
+        if (!(this.modelBipedMain instanceof ModelPlayer model) || !(player instanceof AbstractClientPlayer client)) {
+            original.call(player);
             return;
         }
-
-        if (!SkinLayers3DConfig.modernSkinSupport) {
-            ext.setSlim(false);
-            SkinLayers3DSetup.updateState(uuid, null);
-            return;
+        model.setSkinModel(SkinModelHelper.getSkinModel(client));
+        try (LayerDraw draw = SkinLayers.begin(client, DrawKind.FIRST_PERSON, 0.0625F)) {
+            original.call(player);
+            if (!draw.suppressed()) model.drawFirstPersonSleeve(draw, 0.0625F);
         }
-
-        if (!ext.isModern()) ext.initModern();
-
-        if (player instanceof AbstractClientPlayer clientPlayer) {
-            SkinModel model = SkinModelHelper.getSkinModel(clientPlayer);
-            boolean slim = model == SkinModel.SLIM;
-            ext.setSlim(slim);
-
-            if (SkinLayers3DConfig.enabled3D) {
-                SkinLayers3DState existing = SkinLayers3DSetup.getState(uuid);
-                state = SkinLayers3DSetup.createOrUpdate(clientPlayer, existing, slim);
-                SkinLayers3DSetup.updateState(uuid, state);
-            } else {
-                SkinLayers3DSetup.updateState(uuid, null);
-            }
-        } else {
-            SkinLayers3DSetup.updateState(uuid, null);
-        }
-
-        if (SkinLayersHelper.isSkinLayerHidden(player, SkinLayersHelper.EnumPlayerModelParts.RIGHT_SLEEVE))
-            ext.hidePart(SkinLayersHelper.EnumPlayerModelParts.RIGHT_SLEEVE, true);
     }
-
-    /**
-     * Renders right arm overlay layer before first-person arm base renders
-     */
-    @Inject(
-        method = "renderFirstPersonArm",
-        at = @At(
-            value = "INVOKE",
-            target = "Lnet/minecraft/client/model/ModelRenderer;render(F)V",
-            shift = At.Shift.BEFORE))
-    private void wawelauth$renderFirstPersonSleevePre(EntityPlayer player, CallbackInfo ci) {
-        if (EarsCompat.isRendererActive()) {
-            if (player instanceof AbstractClientPlayer clientPlayer) {
-                EarsCompat.applySkinModel((RenderPlayer) (Object) this, clientPlayer);
-            }
-            return;
-        }
-
-        IModelBipedModernExt ext = (IModelBipedModernExt) this.modelBipedMain;
-        ext.renderPart3D(SkinLayersHelper.EnumPlayerModelParts.RIGHT_SLEEVE, 0.0625F);
-    }
-
-    /**
-     * Returns right arm overlay layer visibility after first-person arm base renders
-     */
-    @Inject(method = "renderFirstPersonArm", at = @At(value = "TAIL"))
-    private void wawelauth$renderFirstPersonSleevePost(EntityPlayer player, CallbackInfo ci) {
-        if (EarsCompat.isRendererActive()) return;
-
-        IModelBipedModernExt ext = (IModelBipedModernExt) this.modelBipedMain;
-        ext.hidePart(SkinLayersHelper.EnumPlayerModelParts.RIGHT_SLEEVE, false);
-    }
-
 }

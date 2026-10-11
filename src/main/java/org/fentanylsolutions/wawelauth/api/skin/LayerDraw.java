@@ -13,7 +13,10 @@ public interface LayerDraw extends AutoCloseable {
      */
     void submit(LayerSegment segment);
 
-    /** Stops this draw, and only this draw, from drawing anything else. For integrations that replace the model. */
+    /**
+     * Stops this draw from drawing anything else, along with draws opened inside it for the same entity. Other draws
+     * are unaffected. For integrations that replace the model, or draw the arm without its sleeve.
+     */
     void suppress();
 
     boolean suppressed();

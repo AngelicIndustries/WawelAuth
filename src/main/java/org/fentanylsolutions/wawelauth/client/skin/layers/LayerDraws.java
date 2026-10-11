@@ -40,9 +40,13 @@ public final class LayerDraws {
         registered = true;
     }
 
-    public static LayerDraw begin(AbstractClientPlayer player, DrawKind kind, float scale) {
+    public static LayerDraw begin(Entity entity, DrawKind kind, float scale) {
         VoxelLayers.sweepIfDue();
-        Draw draw = new Draw(player, kind, scale, voxelsAllowed(player, kind));
+        Draw draw = new Draw(entity, kind, scale, voxelsAllowed(entity, kind));
+        Draw outer = STACK.peek();
+        if (outer != null && outer.suppressed && outer.entity == entity) {
+            draw.suppressed = true;
+        }
         if (!STACK.push(draw) && !leakLogged) {
             leakLogged = true;
             WawelAuth.LOG.error("Skin layer draws were opened without being closed; dropped them");
@@ -54,8 +58,8 @@ public final class LayerDraws {
         return STACK.peek();
     }
 
-    private static boolean voxelsAllowed(AbstractClientPlayer player, DrawKind kind) {
-        if (SmartMovingCompat.isLoaded()) return false;
+    private static boolean voxelsAllowed(Entity entity, DrawKind kind) {
+        if (!(entity instanceof AbstractClientPlayer player) || SmartMovingCompat.isLoaded()) return false;
         if (kind != DrawKind.WORLD) return true;
         Entity viewer = Minecraft.getMinecraft().renderViewEntity;
         if (viewer == null || viewer == player) return true;
@@ -83,7 +87,7 @@ public final class LayerDraws {
 
     private static final class Draw implements LayerDraw {
 
-        private final AbstractClientPlayer player;
+        private final Entity entity;
         private final DrawKind kind;
         private final float scale;
         private final boolean voxels;
@@ -91,8 +95,8 @@ public final class LayerDraws {
         private boolean suppressed;
         private boolean closed;
 
-        Draw(AbstractClientPlayer player, DrawKind kind, float scale, boolean voxels) {
-            this.player = player;
+        Draw(Entity entity, DrawKind kind, float scale, boolean voxels) {
+            this.entity = entity;
             this.kind = kind;
             this.scale = scale;
             this.voxels = voxels;
@@ -104,13 +108,16 @@ public final class LayerDraws {
             if (suppressed) return;
 
             SkinPart part = segment.part();
-            if (!PlayerSkins.isShown(player, part)) return;
+            boolean covered = false;
+            if (entity instanceof EntityPlayer player) {
+                if (!PlayerSkins.isShown(player, part)) return;
+                covered = kind != DrawKind.FIRST_PERSON && coveredByArmor(player, part);
+                if (covered && ViewerSkinSettings.hideOverlayUnderArmor()) return;
+            }
 
-            boolean covered = kind != DrawKind.FIRST_PERSON && coveredByArmor(player, part);
-            if (covered && ViewerSkinSettings.hideOverlayUnderArmor()) return;
-
+            // voxels is only ever true for client players.
             if (voxels && !covered && ViewerSkinSettings.volumetric(part)) {
-                if (skin == null) skin = PlayerSkins.get(player);
+                if (skin == null) skin = PlayerSkins.get((AbstractClientPlayer) entity);
                 if (VoxelLayers.draw(skin, segment, scale) != VoxelLayers.Result.UNAVAILABLE) return;
             }
             OverlayBoxes.draw(segment, scale);

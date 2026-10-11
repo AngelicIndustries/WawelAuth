@@ -58,7 +58,6 @@ public final class SkinInvalidatePacket implements IMessage {
                             .invalidate(profileId);
                     }
                     SkinLayers3DSetup.updateSkullCache(profileId, null);
-                    SkinLayers3DSetup.updateState(profileId, null);
                 });
             return null;
         }
