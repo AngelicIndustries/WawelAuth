@@ -42,9 +42,11 @@ public class WawelClient {
     private final SessionBridge sessionBridge;
     private final ConnectionProviderCache connectionProviderCache;
     private final WawelTextureResolver textureResolver;
+    private final File dataDir;
 
     private WawelClient(File dataDir) {
         WawelAuth.LOG.info("Starting WawelAuth client module...");
+        this.dataDir = dataDir;
 
         if (!dataDir.exists() && !dataDir.mkdirs()) {
             throw new RuntimeException("Failed to create client data directory: " + dataDir);
@@ -176,6 +178,10 @@ public class WawelClient {
 
     public SessionBridge getSessionBridge() {
         return sessionBridge;
+    }
+
+    public File getDataDir() {
+        return dataDir;
     }
 
     public WawelTextureResolver getTextureResolver() {
