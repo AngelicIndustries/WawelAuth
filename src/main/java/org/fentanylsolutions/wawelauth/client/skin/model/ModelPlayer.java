@@ -54,7 +54,8 @@ public class ModelPlayer extends ModelBiped {
         this.textureHeight = 64;
 
         this.bipedHead = part(0, 0, -4, -8, -4, 8, 8, 8, scale, 0, 0, 0);
-        this.bipedHeadwear = part(32, 0, -4, -8, -4, 8, 8, 8, scale + 0.5F, 0, 0, 0);
+        this.bipedHeadwear = new Headwear(this);
+        this.bipedHeadwear.addBox(-4, -8, -4, 8, 8, 8, scale + 0.5F);
         this.bipedEars = part(24, 0, -3, -6, -1, 6, 6, 1, scale, 0, 0, 0);
         this.bipedBody = part(16, 16, -4, 0, -2, 8, 12, 4, scale, 0, 0, 0);
         this.classicRightArm = part(40, 16, -3, -2, -2, 4, 12, 4, scale, -5, 2.0F, 0);
@@ -97,21 +98,15 @@ public class ModelPlayer extends ModelBiped {
 
     /**
      * Draws the vanilla parts, then the overlay layers. The draw is open around the vanilla parts too, so code that
-     * replaces this model's rendering there can suppress exactly this draw's layers. The headwear part is never drawn
-     * directly; the hat layer stands in for it while {@code bipedHeadwear} is shown.
+     * replaces this model's rendering there can suppress exactly this draw's layers. The headwear part draws only once
+     * the draw is suppressed; until then the hat layer stands in for it while {@code bipedHeadwear} is shown.
      */
     @Override
     public void render(Entity entity, float limbSwing, float limbSwingAmount, float ageInTicks, float netHeadYaw,
         float headPitch, float scale) {
-        boolean hat = this.bipedHeadwear.showModel;
         try (LayerDraw draw = SkinLayers.begin(entity, drawKind(), scale)) {
-            this.bipedHeadwear.showModel = false;
-            try {
-                super.render(entity, limbSwing, limbSwingAmount, ageInTicks, netHeadYaw, headPitch, scale);
-            } finally {
-                this.bipedHeadwear.showModel = hat;
-            }
-            if (!draw.suppressed()) drawLayers(draw, scale, hat);
+            super.render(entity, limbSwing, limbSwingAmount, ageInTicks, netHeadYaw, headPitch, scale);
+            if (!draw.suppressed()) drawLayers(draw, scale);
         }
     }
 
@@ -120,21 +115,21 @@ public class ModelPlayer extends ModelBiped {
         submit(draw, this.bipedRightArm, rightSleeve(), scale);
     }
 
-    private void drawLayers(LayerDraw draw, float scale, boolean hat) {
+    private void drawLayers(LayerDraw draw, float scale) {
         if (this.isChild) {
             // Same groups and transforms as ModelBiped.render, headwear included in the body group.
             GL11.glPushMatrix();
             GL11.glScalef(0.5F, 0.5F, 0.5F);
             GL11.glTranslatef(0.0F, 24.0F * scale, 0.0F);
-            drawBodyLayers(draw, scale, hat);
+            drawBodyLayers(draw, scale);
             GL11.glPopMatrix();
         } else {
-            drawBodyLayers(draw, scale, hat);
+            drawBodyLayers(draw, scale);
         }
     }
 
-    private void drawBodyLayers(LayerDraw draw, float scale, boolean hat) {
-        if (hat) submit(draw, this.bipedHeadwear, HAT, scale);
+    private void drawBodyLayers(LayerDraw draw, float scale) {
+        submit(draw, this.bipedHeadwear, HAT, scale);
         submit(draw, this.bipedBody, JACKET, scale);
         submit(draw, this.bipedRightArm, rightSleeve(), scale);
         submit(draw, this.bipedLeftArm, leftSleeve(), scale);
@@ -150,6 +145,23 @@ public class ModelPlayer extends ModelBiped {
         part.postRender(scale);
         draw.submit(segment);
         GL11.glPopMatrix();
+    }
+
+    /**
+     * The vanilla headwear, drawn by {@code ModelBiped.render} only while the open layer draw is suppressed, so a
+     * model replacement that suppresses the layers still gets its hat. Drawn directly when no draw is open.
+     */
+    private static final class Headwear extends ModelRenderer {
+
+        Headwear(ModelBiped model) {
+            super(model, 32, 0);
+        }
+
+        @Override
+        public void render(float scale) {
+            LayerDraw draw = SkinLayers.current();
+            if (draw == null || draw.suppressed()) super.render(scale);
+        }
     }
 
     /** World entity passes set a render pass; GUI drawing (inventory, previews) happens outside them. */
