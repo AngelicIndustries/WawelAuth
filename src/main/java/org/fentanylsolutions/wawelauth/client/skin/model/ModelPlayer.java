@@ -23,6 +23,9 @@ import cpw.mods.fml.relauncher.SideOnly;
  * <p>
  * The arm fields are swapped to the drawn player's model before each draw. Read {@code bipedRightArm} and
  * {@code bipedLeftArm} at draw time; do not cache them. The cape keeps the 64x32 cape layout.
+ * <p>
+ * It is installed by {@code RenderPlayer}'s constructor, subclasses included. A renderer that swaps in its own model
+ * keeps the constructed one for vanilla-style draws such as the first-person arm, so the sleeve still works.
  */
 @SideOnly(Side.CLIENT)
 public class ModelPlayer extends ModelBiped {
