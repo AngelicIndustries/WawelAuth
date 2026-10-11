@@ -81,6 +81,11 @@ public class VoxelMesh extends VoxelModelPart {
         GL11.glPopMatrix();
     }
 
+    /** Calls the compiled list under the current transform, ignoring this part's own position and rotation. */
+    public void draw() {
+        if (displayList != -1) GL11.glCallList(displayList);
+    }
+
     /**
      * Delete the GL display list. Call when the mesh is no longer needed.
      */
