@@ -78,21 +78,23 @@ final class VoxelLayers {
     }
 
     /**
-     * Scales the voxels around the box center horizontally and around the part's rotation point vertically, then
-     * shifts them, with the per-part values 3D Skin Layers uses.
+     * Scales the voxels around their box, with the per-part values 3D Skin Layers uses: horizontally around the box
+     * center, vertically around the box end attached to the body (the top, or the bottom for the hat). Slices use the
+     * whole box, so the halves of a jointed limb scale like one limb.
      */
     private static void render(VoxelMesh mesh, LayerSegment segment, float scale) {
         Tuning tuning = Tuning.of(segment.part());
         float centerX = segment.originX() + segment.width() / 2.0F;
         float centerZ = segment.originZ() + segment.depth() / 2.0F;
+        float pivotY = segment.part() == SkinPart.HAT ? segment.originY() + segment.height() : segment.originY();
 
         GL11.glPushAttrib(GL11.GL_COLOR_BUFFER_BIT);
         GL11.glEnable(GL11.GL_BLEND);
         GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
         GL11.glPushMatrix();
-        GL11.glTranslatef(centerX * scale, tuning.offsetY * scale, centerZ * scale);
+        GL11.glTranslatef(centerX * scale, (pivotY + tuning.offsetY) * scale, centerZ * scale);
         GL11.glScalef(tuning.scaleX, tuning.scaleY, tuning.scaleZ);
-        GL11.glTranslatef(-centerX * scale, tuning.preOffsetY * scale, -centerZ * scale);
+        GL11.glTranslatef(-centerX * scale, (tuning.preOffsetY - pivotY) * scale, -centerZ * scale);
         if (scale != OverlayBoxes.MODEL_SCALE) {
             float factor = scale / OverlayBoxes.MODEL_SCALE;
             GL11.glScalef(factor, factor, factor);
