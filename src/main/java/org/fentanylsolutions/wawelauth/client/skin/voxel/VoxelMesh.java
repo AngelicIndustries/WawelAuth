@@ -1,11 +1,9 @@
-package org.fentanylsolutions.wawelauth.client.render.skinlayers;
+package org.fentanylsolutions.wawelauth.client.skin.voxel;
 
 import java.util.List;
 
 import net.minecraft.client.renderer.Tessellator;
 
-import org.fentanylsolutions.wawelauth.client.render.skinlayers.voxels.VoxelCube;
-import org.fentanylsolutions.wawelauth.client.render.skinlayers.voxels.VoxelModelPart;
 import org.lwjgl.opengl.GL11;
 
 /**
@@ -13,11 +11,11 @@ import org.lwjgl.opengl.GL11;
  * <p>
  * Compiles polygon data into a GL display list for fast repeated rendering.
  */
-public class SkinLayers3DMesh extends VoxelModelPart {
+public class VoxelMesh extends VoxelModelPart {
 
     private int displayList = -1;
 
-    public SkinLayers3DMesh(List<VoxelCube> customCubes) {
+    public VoxelMesh(List<VoxelCube> customCubes) {
         super(customCubes);
     }
 

@@ -20,9 +20,9 @@ import net.minecraft.item.ItemStack;
 import org.fentanylsolutions.wawelauth.api.SkinLayersHelper;
 import org.fentanylsolutions.wawelauth.client.render.IModelBipedModernExt;
 import org.fentanylsolutions.wawelauth.client.render.skinlayers.SkinLayers3DConfig;
-import org.fentanylsolutions.wawelauth.client.render.skinlayers.SkinLayers3DMesh;
 import org.fentanylsolutions.wawelauth.client.render.skinlayers.SkinLayers3DSetup;
 import org.fentanylsolutions.wawelauth.client.render.skinlayers.SkinLayers3DState;
+import org.fentanylsolutions.wawelauth.client.skin.voxel.VoxelMesh;
 import org.lwjgl.opengl.GL11;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -365,7 +365,7 @@ public abstract class MixinModelBiped extends ModelBase implements IModelBipedMo
      * Render a 3D mesh if available and enabled.
      */
     @Unique
-    private void renderMesh(SkinLayers3DMesh mesh, ModelRenderer source, float scaleFactor, boolean enabled,
+    private void renderMesh(VoxelMesh mesh, ModelRenderer source, float scaleFactor, boolean enabled,
         SkinLayersHelper.EnumPlayerModelParts part) {
         if (enabled && mesh != null && mesh.isCompiled() && source != null) {
             mesh.setPosition(source.rotationPointX, source.rotationPointY, source.rotationPointZ);

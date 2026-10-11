@@ -14,9 +14,12 @@ import net.minecraft.util.ResourceLocation;
 import org.fentanylsolutions.wawelauth.WawelAuth;
 import org.fentanylsolutions.wawelauth.client.render.LocalTextureLoader;
 import org.fentanylsolutions.wawelauth.client.render.ProviderThreadDownloadImageData;
-import org.fentanylsolutions.wawelauth.client.render.skinlayers.voxels.VoxelBuilder;
-import org.fentanylsolutions.wawelauth.client.render.skinlayers.voxels.VoxelCube;
-import org.fentanylsolutions.wawelauth.client.render.skinlayers.voxels.VoxelSurfaceBuilder;
+import org.fentanylsolutions.wawelauth.client.skin.voxel.ImageVoxelTexture;
+import org.fentanylsolutions.wawelauth.client.skin.voxel.VoxelBuilder;
+import org.fentanylsolutions.wawelauth.client.skin.voxel.VoxelCube;
+import org.fentanylsolutions.wawelauth.client.skin.voxel.VoxelCubeCollector;
+import org.fentanylsolutions.wawelauth.client.skin.voxel.VoxelMesh;
+import org.fentanylsolutions.wawelauth.client.skin.voxel.VoxelSurfaceBuilder;
 import org.fentanylsolutions.wawelauth.wawelclient.WawelClient;
 
 import com.mojang.authlib.GameProfile;
@@ -123,7 +126,7 @@ public class SkinLayers3DSetup {
         state.slim = slim;
 
         try {
-            SkinLayers3DSkinData skinData = new SkinLayers3DSkinData(skinImage);
+            ImageVoxelTexture skinData = new ImageVoxelTexture(skinImage);
 
             // Hat: 8x8x8, UV (32,0), topPivot=false, offset=0.6
             if (SkinLayers3DConfig.enableHat3D) {
@@ -173,7 +176,7 @@ public class SkinLayers3DSetup {
      * @param skinLocation the skull's skin texture location
      * @return the hat mesh, or null if generation failed
      */
-    public static SkinLayers3DMesh getOrCreateSkullMesh(GameProfile profile, ResourceLocation skinLocation) {
+    public static VoxelMesh getOrCreateSkullMesh(GameProfile profile, ResourceLocation skinLocation) {
         if (profile == null || skinLocation == null) return null;
 
         SkullMeshCache cached = getSkullCache(profile.getId());
@@ -192,8 +195,8 @@ public class SkinLayers3DSetup {
         }
 
         try {
-            SkinLayers3DSkinData skinData = new SkinLayers3DSkinData(skinImage);
-            SkinLayers3DMesh mesh = buildMesh(skinData, 8, 8, 8, 32, 0, false, 0.6f);
+            ImageVoxelTexture skinData = new ImageVoxelTexture(skinImage);
+            VoxelMesh mesh = buildMesh(skinData, 8, 8, 8, 32, 0, false, 0.6f);
             updateSkullCache(profile.getId(), new SkullMeshCache(skinLocation, mesh));
             return mesh;
         } catch (Exception e) {
@@ -202,16 +205,16 @@ public class SkinLayers3DSetup {
         }
     }
 
-    private static SkinLayers3DMesh buildMesh(SkinLayers3DSkinData skinData, int width, int height, int depth,
-        int textureU, int textureV, boolean topPivot, float rotationOffset) {
-        SkinLayers3DModelBuilder builder = new SkinLayers3DModelBuilder();
+    private static VoxelMesh buildMesh(ImageVoxelTexture skinData, int width, int height, int depth, int textureU,
+        int textureV, boolean topPivot, float rotationOffset) {
+        VoxelCubeCollector builder = new VoxelCubeCollector();
         VoxelBuilder result = VoxelSurfaceBuilder
             .wrapBox(builder, skinData, width, height, depth, textureU, textureV, topPivot, rotationOffset);
         if (result == null || builder.isEmpty()) {
             return null;
         }
         List<VoxelCube> cubes = builder.getCubes();
-        SkinLayers3DMesh mesh = new SkinLayers3DMesh(cubes);
+        VoxelMesh mesh = new VoxelMesh(cubes);
         mesh.compileDisplayList();
         return mesh;
     }
@@ -234,9 +237,9 @@ public class SkinLayers3DSetup {
     public static class SkullMeshCache {
 
         final ResourceLocation skinLocation;
-        final SkinLayers3DMesh mesh;
+        final VoxelMesh mesh;
 
-        SkullMeshCache(ResourceLocation skinLocation, SkinLayers3DMesh mesh) {
+        SkullMeshCache(ResourceLocation skinLocation, VoxelMesh mesh) {
             this.skinLocation = skinLocation;
             this.mesh = mesh;
         }

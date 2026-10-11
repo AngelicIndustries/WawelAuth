@@ -1,11 +1,7 @@
-package org.fentanylsolutions.wawelauth.client.render.skinlayers;
+package org.fentanylsolutions.wawelauth.client.skin.voxel;
 
 import java.util.ArrayList;
 import java.util.List;
-
-import org.fentanylsolutions.wawelauth.client.render.skinlayers.voxels.Direction;
-import org.fentanylsolutions.wawelauth.client.render.skinlayers.voxels.VoxelBuilder;
-import org.fentanylsolutions.wawelauth.client.render.skinlayers.voxels.VoxelCube;
 
 /**
  * 1.7.10 cube collector used by the voxel wrapper pipeline.
@@ -13,7 +9,7 @@ import org.fentanylsolutions.wawelauth.client.render.skinlayers.voxels.VoxelCube
  * This builder follows the MIT snapshot wiring style from 3d-Skin-Layers and
  * adapts it to our custom-cube target.
  */
-public class SkinLayers3DModelBuilder implements VoxelBuilder {
+public class VoxelCubeCollector implements VoxelBuilder {
 
     private final List<VoxelCube> cubes = new ArrayList<>();
     private int u;

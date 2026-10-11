@@ -9,8 +9,8 @@ import net.minecraft.util.ResourceLocation;
 
 import org.fentanylsolutions.wawelauth.api.WawelTextureResolver;
 import org.fentanylsolutions.wawelauth.client.render.skinlayers.SkinLayers3DConfig;
-import org.fentanylsolutions.wawelauth.client.render.skinlayers.SkinLayers3DMesh;
 import org.fentanylsolutions.wawelauth.client.render.skinlayers.SkinLayers3DSetup;
+import org.fentanylsolutions.wawelauth.client.skin.voxel.VoxelMesh;
 import org.fentanylsolutions.wawelauth.wawelclient.WawelClient;
 import org.fentanylsolutions.wawelauth.wawelclient.data.ClientProvider;
 import org.lwjgl.opengl.GL11;
@@ -102,7 +102,7 @@ public class MixinTileEntitySkullRenderer {
 
         // 3D hat overlay
         if (SkinLayers3DConfig.enabled3D && SkinLayers3DConfig.enableSkulls) {
-            SkinLayers3DMesh hatMesh = SkinLayers3DSetup.getOrCreateSkullMesh(profile, skin);
+            VoxelMesh hatMesh = SkinLayers3DSetup.getOrCreateSkullMesh(profile, skin);
             if (hatMesh != null) {
                 float voxelSize = SkinLayers3DConfig.skullVoxelSize;
                 GL11.glPushAttrib(GL11.GL_COLOR_BUFFER_BIT | GL11.GL_CURRENT_BIT);

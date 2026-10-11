@@ -1,20 +1,17 @@
-package org.fentanylsolutions.wawelauth.client.render.skinlayers;
+package org.fentanylsolutions.wawelauth.client.skin.voxel;
 
 import java.awt.image.BufferedImage;
-
-import org.fentanylsolutions.wawelauth.client.render.skinlayers.voxels.VoxelSurfaceBuilder;
-import org.fentanylsolutions.wawelauth.client.render.skinlayers.voxels.VoxelTexture;
 
 /**
  * VoxelTexture implementation wrapping a BufferedImage (the 64x64 skin from ImageBufferDownload).
  * <p>
  * Reads pixel ARGB data for presence/solidity checks.
  */
-public class SkinLayers3DSkinData implements VoxelTexture {
+public class ImageVoxelTexture implements VoxelTexture {
 
     private final BufferedImage image;
 
-    public SkinLayers3DSkinData(BufferedImage image) {
+    public ImageVoxelTexture(BufferedImage image) {
         this.image = image;
     }
 

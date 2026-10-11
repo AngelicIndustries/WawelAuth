@@ -1,4 +1,4 @@
-package org.fentanylsolutions.wawelauth.client.render.skinlayers.voxels;
+package org.fentanylsolutions.wawelauth.client.skin.voxel;
 
 public interface VoxelTexture {
 
