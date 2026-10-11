@@ -10,11 +10,6 @@ import com.gtnewhorizon.gtnhlib.config.Config;
 @Config(modid = "wawelauth", category = "skinlayers3D", configSubDirectory = "wawelauth")
 public class SkinLayers3DConfig {
 
-    @Config.Comment("Enable modern skin support (64x64, slim arms, HD pass-through).")
-    @Config.DefaultBoolean(true)
-    @Config.RequiresMcRestart
-    public static boolean modernSkinSupport = true;
-
     @Config.Comment("Disable skin overlay rendering when armor is equipped.")
     @Config.DefaultBoolean(false)
     public static boolean hideOverlayArmor = false;

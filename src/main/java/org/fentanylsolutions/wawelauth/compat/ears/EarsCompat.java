@@ -24,7 +24,6 @@ import net.minecraft.util.ResourceLocation;
 import org.fentanylsolutions.wawelauth.WawelAuth;
 import org.fentanylsolutions.wawelauth.api.WawelTextureResolver;
 import org.fentanylsolutions.wawelauth.client.render.SkinModelHelper;
-import org.fentanylsolutions.wawelauth.client.render.skinlayers.SkinLayers3DConfig;
 import org.fentanylsolutions.wawelauth.wawelclient.WawelClient;
 import org.fentanylsolutions.wawelauth.wawelclient.data.ClientProvider;
 import org.fentanylsolutions.wawelauth.wawelcore.data.SkinModel;
@@ -209,8 +208,6 @@ public final class EarsCompat {
      * that hook so custom-provider skins use their declared model.
      */
     public static void applySkinModel(RenderPlayer renderer, AbstractClientPlayer player) {
-        if (!SkinLayers3DConfig.modernSkinSupport) return;
-
         Provider active = getProvider();
         if (active == Provider.NONE) return;
 

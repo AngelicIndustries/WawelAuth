@@ -9,7 +9,6 @@ import net.minecraft.client.renderer.entity.RenderManager;
 import net.minecraft.client.renderer.entity.RenderPlayer;
 import net.minecraft.entity.Entity;
 
-import org.fentanylsolutions.wawelauth.client.render.skinlayers.SkinLayers3DConfig;
 import org.fentanylsolutions.wawelauth.client.skin.model.ModelPlayer;
 import org.fentanylsolutions.wawelauth.mixins.early.minecraft.AccessorRendererLivingEntity;
 import org.spongepowered.asm.mixin.Mixin;
@@ -30,7 +29,6 @@ public class MixinRenderingRegistry {
 
     @Inject(method = "loadEntityRenderers", at = @At(value = "TAIL"), remap = false)
     private void setupModernModels(Map<Class<? extends Entity>, Render> rendererMap, CallbackInfo ci) {
-        if (!SkinLayers3DConfig.modernSkinSupport) return;
         RenderManager.instance.entityRenderMap.forEach((entityClass, renderer) -> {
             if (!wawelAuth$rendererCopiesPlayerSkin(renderer)) return;
             ModelBiped model = new ModelPlayer(0.0F);

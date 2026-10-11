@@ -9,7 +9,6 @@ import org.fentanylsolutions.wawelauth.api.skin.DrawKind;
 import org.fentanylsolutions.wawelauth.api.skin.LayerDraw;
 import org.fentanylsolutions.wawelauth.api.skin.SkinLayers;
 import org.fentanylsolutions.wawelauth.client.render.SkinModelHelper;
-import org.fentanylsolutions.wawelauth.client.render.skinlayers.SkinLayers3DConfig;
 import org.fentanylsolutions.wawelauth.client.skin.model.ModelPlayer;
 import org.fentanylsolutions.wawelauth.compat.ears.EarsCompat;
 import org.spongepowered.asm.mixin.Mixin;
@@ -35,7 +34,7 @@ public class MixinRenderPlayer {
      */
     @Redirect(method = "<init>", at = @At(value = "NEW", target = "net/minecraft/client/model/ModelBiped", ordinal = 0))
     private static ModelBiped wawelauth$installModelPlayer(float scale) {
-        if (!SkinLayers3DConfig.modernSkinSupport || EarsCompat.isRendererActive()) {
+        if (EarsCompat.isRendererActive()) {
             return new ModelBiped(scale);
         }
         return new ModelPlayer(scale);

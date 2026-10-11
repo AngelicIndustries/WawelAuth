@@ -35,16 +35,13 @@ import com.mojang.authlib.GameProfile;
 public class MixinTileEntitySkullRenderer {
 
     @Shadow
-    private ModelSkeletonHead field_147533_g;
-
-    @Shadow
     private ModelSkeletonHead field_147538_h;
 
     /** Swap to 64x64 UV model for player skulls when modern skin support is on. */
     @ModifyVariable(method = "func_152674_a", at = @At("STORE"), ordinal = 0)
     private ModelSkeletonHead wawelauth$replaceSkullModel(ModelSkeletonHead original,
         @Local(index = 6, argsOnly = true) int skullType) {
-        if (SkinLayers3DConfig.modernSkinSupport && skullType == 3) {
+        if (skullType == 3) {
             return field_147538_h;
         }
         return original;
@@ -62,7 +59,7 @@ public class MixinTileEntitySkullRenderer {
             return;
         }
 
-        ModelSkeletonHead model = SkinLayers3DConfig.modernSkinSupport ? field_147538_h : field_147533_g;
+        ModelSkeletonHead model = field_147538_h;
 
         Minecraft.getMinecraft()
             .getTextureManager()

@@ -11,7 +11,6 @@ import org.fentanylsolutions.wawelauth.api.WawelTextureResolver;
 import org.fentanylsolutions.wawelauth.client.render.LocalTextureLoader;
 import org.fentanylsolutions.wawelauth.client.render.animatedcape.AnimatedCapeTexture;
 import org.fentanylsolutions.wawelauth.client.render.animatedcape.AnimatedCapeTracker;
-import org.fentanylsolutions.wawelauth.client.render.skinlayers.SkinLayers3DConfig;
 import org.fentanylsolutions.wawelauth.wawelclient.BuiltinProviders;
 import org.fentanylsolutions.wawelauth.wawelclient.SessionBridge;
 import org.fentanylsolutions.wawelauth.wawelclient.WawelClient;
@@ -39,9 +38,6 @@ public class MixinAbstractClientPlayer {
 
     @Inject(method = "<clinit>", at = @At("TAIL"))
     private static void wawelauth$useModernSteve(CallbackInfo ci) {
-        if (!SkinLayers3DConfig.modernSkinSupport) {
-            return;
-        }
         locationStevePng = new ResourceLocation("wawelauth", "textures/steve_64.png");
     }
 

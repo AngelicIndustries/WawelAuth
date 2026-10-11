@@ -5,7 +5,6 @@ import java.awt.image.DataBufferInt;
 
 import net.minecraft.client.renderer.ImageBufferDownload;
 
-import org.fentanylsolutions.wawelauth.client.render.skinlayers.SkinLayers3DConfig;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Overwrite;
 import org.spongepowered.asm.mixin.Shadow;
@@ -49,10 +48,6 @@ public abstract class MixinImageBufferDownload {
     @Overwrite
     public BufferedImage parseUserSkin(BufferedImage image) {
         if (image == null) return null;
-
-        if (!SkinLayers3DConfig.modernSkinSupport) {
-            return wawelauth$parseLegacySkin(image);
-        }
 
         int srcW = image.getWidth();
         int srcH = image.getHeight();
@@ -102,24 +97,6 @@ public abstract class MixinImageBufferDownload {
         this.setAreaOpaque(0, 16, 64, 32); // Body + arms + legs row
         this.setAreaOpaque(16, 48, 48, 64); // Left arm + left leg bases
 
-        return out;
-    }
-
-    private BufferedImage wawelauth$parseLegacySkin(BufferedImage image) {
-        int srcW = image.getWidth();
-        int srcH = image.getHeight();
-
-        this.imageWidth = 64;
-        this.imageHeight = 32;
-
-        BufferedImage out = new BufferedImage(this.imageWidth, this.imageHeight, BufferedImage.TYPE_INT_ARGB);
-        this.imageData = ((DataBufferInt) out.getRaster()
-            .getDataBuffer()).getData();
-
-        copyRegion(image, this.imageData, this.imageWidth, 0, 0, Math.min(srcW, 64), Math.min(srcH, 32), 0, 0);
-        this.setAreaOpaque(0, 0, 32, 16);
-        this.setAreaTransparent(32, 0, 64, 32);
-        this.setAreaOpaque(0, 16, 64, 32);
         return out;
     }
 
