@@ -1,5 +1,7 @@
 package org.fentanylsolutions.wawelauth.client.skin.layers;
 
+import java.util.EnumSet;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.AbstractClientPlayer;
 import net.minecraft.entity.Entity;
@@ -93,6 +95,7 @@ public final class LayerDraws {
         private final boolean voxels;
         private PlayerSkin skin;
         private boolean suppressed;
+        private final EnumSet<SkinPart> claimed = EnumSet.noneOf(SkinPart.class);
         private boolean closed;
 
         Draw(Entity entity, DrawKind kind, float scale, boolean voxels) {
@@ -131,6 +134,16 @@ public final class LayerDraws {
         @Override
         public boolean suppressed() {
             return suppressed;
+        }
+
+        @Override
+        public void claim(SkinPart part) {
+            claimed.add(part);
+        }
+
+        @Override
+        public boolean claimed(SkinPart part) {
+            return claimed.contains(part);
         }
 
         @Override

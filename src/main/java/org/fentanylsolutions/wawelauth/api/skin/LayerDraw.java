@@ -21,6 +21,16 @@ public interface LayerDraw extends AutoCloseable {
 
     boolean suppressed();
 
+    /**
+     * Takes over one part's layers: the code that opened this draw leaves the part out of its own layer pass, while
+     * {@link #submit} still draws it. For integrations that replace a part's overlay geometry and submit its
+     * vanilla-shaped pieces on their own bones. Claiming the hat lets the vanilla hat part draw again, so the
+     * replacement can route it. Draws opened inside this one are unaffected.
+     */
+    void claim(SkinPart part);
+
+    boolean claimed(SkinPart part);
+
     @Override
     void close();
 }

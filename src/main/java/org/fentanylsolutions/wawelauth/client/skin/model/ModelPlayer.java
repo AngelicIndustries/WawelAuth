@@ -101,8 +101,9 @@ public class ModelPlayer extends ModelBiped {
 
     /**
      * Draws the vanilla parts, then the overlay layers. The draw is open around the vanilla parts too, so code that
-     * replaces this model's rendering there can suppress exactly this draw's layers. The headwear part draws only once
-     * the draw is suppressed; until then the hat layer stands in for it while {@code bipedHeadwear} is shown.
+     * replaces this model's rendering there can suppress this draw's layers or claim some of its parts. The headwear
+     * part draws only once the draw is suppressed or the hat claimed; until then the hat layer stands in for it while
+     * {@code bipedHeadwear} is shown.
      */
     @Override
     public void render(Entity entity, float limbSwing, float limbSwingAmount, float ageInTicks, float netHeadYaw,
@@ -140,9 +141,9 @@ public class ModelPlayer extends ModelBiped {
         submit(draw, this.bipedLeftLeg, LEFT_PANTS, scale);
     }
 
-    /** A hidden part has no transform, so its layer is skipped too. */
+    /** A hidden part has no transform, so its layer is skipped too, as is a part someone else claimed. */
     private static void submit(LayerDraw draw, ModelRenderer part, LayerSegment segment, float scale) {
-        if (part.isHidden || !part.showModel) return;
+        if (part.isHidden || !part.showModel || draw.claimed(segment.part())) return;
         GL11.glPushMatrix();
         GL11.glTranslatef(part.offsetX, part.offsetY, part.offsetZ);
         part.postRender(scale);
@@ -151,8 +152,8 @@ public class ModelPlayer extends ModelBiped {
     }
 
     /**
-     * The vanilla headwear, drawn by {@code ModelBiped.render} only while the open layer draw is suppressed, so a
-     * model replacement that suppresses the layers still gets its hat. Drawn directly when no draw is open.
+     * The vanilla headwear, drawn by {@code ModelBiped.render} only while the open layer draw is suppressed or its hat
+     * claimed, so a model replacement that takes over the hat still gets it. Drawn directly when no draw is open.
      */
     private static final class Headwear extends ModelRenderer {
 
@@ -163,7 +164,7 @@ public class ModelPlayer extends ModelBiped {
         @Override
         public void render(float scale) {
             LayerDraw draw = SkinLayers.current();
-            if (draw == null || draw.suppressed()) super.render(scale);
+            if (draw == null || draw.suppressed() || draw.claimed(SkinPart.HAT)) super.render(scale);
         }
     }
 
