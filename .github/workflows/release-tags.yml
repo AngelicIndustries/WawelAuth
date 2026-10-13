@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   release:
-    uses: JackOfNoneTrades/67minecraft-gradle-publish/.github/workflows/gtnh-release-with-67minecraft.yml@1.0.1
+    uses: FentanylSolutions/67minecraft-gradle-publish/.github/workflows/gtnh-release-with-67minecraft.yml@1.0.1
     secrets:
       MAVEN_USER: ${{ secrets.MAVEN_USER }}
       MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
