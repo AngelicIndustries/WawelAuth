@@ -110,7 +110,7 @@ public class ModelPlayer extends ModelBiped {
         float headPitch, float scale) {
         try (LayerDraw draw = SkinLayers.begin(entity, drawKind(), scale)) {
             super.render(entity, limbSwing, limbSwingAmount, ageInTicks, netHeadYaw, headPitch, scale);
-            if (!draw.suppressed()) drawLayers(draw, scale);
+            if (!draw.suppressed()) drawLayers(draw, scale, true);
         }
     }
 
@@ -119,21 +119,25 @@ public class ModelPlayer extends ModelBiped {
         submit(draw, this.bipedRightArm, rightSleeve(), scale);
     }
 
-    private void drawLayers(LayerDraw draw, float scale) {
+    /**
+     * Submits the overlay layers on the parts' current poses, for renderers that draw this model part by part instead
+     * of calling {@link #render}. The hat is left out when the vanilla headwear part already drew it.
+     */
+    public void drawLayers(LayerDraw draw, float scale, boolean hat) {
         if (this.isChild) {
             // Same groups and transforms as ModelBiped.render, headwear included in the body group.
             GL11.glPushMatrix();
             GL11.glScalef(0.5F, 0.5F, 0.5F);
             GL11.glTranslatef(0.0F, 24.0F * scale, 0.0F);
-            drawBodyLayers(draw, scale);
+            drawBodyLayers(draw, scale, hat);
             GL11.glPopMatrix();
         } else {
-            drawBodyLayers(draw, scale);
+            drawBodyLayers(draw, scale, hat);
         }
     }
 
-    private void drawBodyLayers(LayerDraw draw, float scale) {
-        submit(draw, this.bipedHeadwear, HAT, scale);
+    private void drawBodyLayers(LayerDraw draw, float scale, boolean hat) {
+        if (hat) submit(draw, this.bipedHeadwear, HAT, scale);
         submit(draw, this.bipedBody, JACKET, scale);
         submit(draw, this.bipedRightArm, rightSleeve(), scale);
         submit(draw, this.bipedLeftArm, leftSleeve(), scale);

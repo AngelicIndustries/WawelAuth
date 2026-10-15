@@ -346,6 +346,12 @@ public class Mixins extends FentMixins {
             .side(MiscUtil.Side.CLIENT)
             .build();
 
+        registry.mixin("MixinRenderCorpse")
+            .modid("modelcitizens")
+            .phase(MixinUtil.Phase.LATE)
+            .side(MiscUtil.Side.CLIENT)
+            .build();
+
         registry.mixin("MixinEventHandlerWA")
             .modid("armoredarms")
             .phase(MixinUtil.Phase.LATE)
