@@ -70,7 +70,7 @@ public final class LayerDraws {
     }
 
     /** Helmet covers the hat, chestplate the jacket and sleeves, leggings or boots the pants. */
-    static boolean coveredByArmor(EntityPlayer player, SkinPart part) {
+    public static boolean coveredByArmor(EntityPlayer player, SkinPart part) {
         if (player.inventory == null) return false;
         return switch (part) {
             case HAT -> player.inventory.armorItemInSlot(3) != null;

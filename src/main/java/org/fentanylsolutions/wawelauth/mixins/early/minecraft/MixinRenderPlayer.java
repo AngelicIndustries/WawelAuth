@@ -11,6 +11,7 @@ import org.fentanylsolutions.wawelauth.api.skin.SkinLayers;
 import org.fentanylsolutions.wawelauth.client.render.SkinModelHelper;
 import org.fentanylsolutions.wawelauth.client.skin.model.ModelPlayer;
 import org.fentanylsolutions.wawelauth.compat.ears.EarsCompat;
+import org.fentanylsolutions.wawelauth.compat.smartmoving.SmartRenderModels;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -45,6 +46,8 @@ public class MixinRenderPlayer {
         float partialTicks, CallbackInfo ci) {
         if (this.modelBipedMain instanceof ModelPlayer model) {
             model.setSkinModel(SkinModelHelper.getSkinModel(player));
+        } else {
+            SmartRenderModels.prepare(this.modelBipedMain, player);
         }
     }
 
@@ -54,6 +57,7 @@ public class MixinRenderPlayer {
     @WrapMethod(method = "renderFirstPersonArm")
     private void wawelauth$firstPersonSleeve(EntityPlayer player, Operation<Void> original) {
         if (!(this.modelBipedMain instanceof ModelPlayer model) || !(player instanceof AbstractClientPlayer client)) {
+            SmartRenderModels.prepare(this.modelBipedMain, player);
             original.call(player);
             return;
         }
