@@ -13,6 +13,7 @@ import java.util.UUID;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.AbstractClientPlayer;
+import net.minecraft.client.model.ModelBiped;
 import net.minecraft.client.model.ModelRenderer;
 import net.minecraft.client.renderer.ImageBufferDownload;
 import net.minecraft.client.renderer.ThreadDownloadImageData;
@@ -219,6 +220,9 @@ public final class EarsCompat {
                 player.getLocationSkin()
                     .toString(),
                 slim);
+            // Ears' arms belong to the vanilla model it amended. Renderers with their own model, such as
+            // EvenMoBends', keep their arms.
+            if (renderer.modelBipedMain == null || renderer.modelBipedMain.getClass() != ModelBiped.class) return;
             ensureArmFields(active);
             renderer.modelBipedMain.bipedLeftArm = getArm(slim ? slimLeftArm : classicLeftArm);
             renderer.modelBipedMain.bipedRightArm = getArm(slim ? slimRightArm : classicRightArm);
