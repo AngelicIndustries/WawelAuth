@@ -346,6 +346,17 @@ public class Mixins extends FentMixins {
             .side(MiscUtil.Side.CLIENT)
             .build();
 
+        registry.mixin("MixinEventHandlerWA")
+            .modid("armoredarms")
+            .phase(MixinUtil.Phase.LATE)
+            .side(MiscUtil.Side.CLIENT)
+            .build();
+        registry.mixin("MixinArmModelRendererPlayer")
+            .modid("armoredarms")
+            .phase(MixinUtil.Phase.LATE)
+            .side(MiscUtil.Side.CLIENT)
+            .build();
+
         registry.mixin("MixinSmartRenderModelPlayer")
             .modid("SmartRender")
             .phase(MixinUtil.Phase.LATE)
