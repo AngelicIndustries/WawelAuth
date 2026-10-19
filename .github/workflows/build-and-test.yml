@@ -7,6 +7,14 @@ on:
   push:
     branches: [ master, main ]
 
+# The org's default token is read-only. The shared workflow posts the test status and PR comments,
+# and pushes Spotless fixes for PRs.
+permissions:
+  contents: write
+  actions: read
+  statuses: write
+  pull-requests: write
+
 jobs:
   build-and-test:
     uses: GTNewHorizons/GTNH-Actions-Workflows/.github/workflows/build-and-test.yml@master
