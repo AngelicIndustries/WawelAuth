@@ -62,6 +62,7 @@
             fallbackEmpty: byId("fallbackEmpty"),
             playerList: byId("playerList"),
             playerListEmpty: byId("playerListEmpty"),
+            modlistSection: byId("modlistSection"),
             modlistCount: byId("modlistCount"),
             modlist: byId("modlist"),
             footerImplementationName: byId("footerImplementationName"),
@@ -154,6 +155,8 @@
         configureServerAddress(el, serverName, serverAddress, serverAddressWarning);
         renderFallbacks(el, buildAuthorizedProviders(fallbacks, apiRoot));
         renderConnectedPlayers(el, connectedPlayers);
+        // The server leaves the list out unless it shares it.
+        el.modlistSection.classList.toggle("hidden", !Array.isArray(data.modlist));
         renderModlist(el, modlist);
         configureIcon(el, icons);
     }
@@ -180,6 +183,7 @@
         el.playerList.classList.add("hidden");
         el.playerListEmpty.classList.remove("hidden");
         el.playerList.innerHTML = "";
+        el.modlistSection.classList.add("hidden");
         renderModlist(el, []);
     }
 

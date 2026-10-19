@@ -44,6 +44,8 @@ public class ServerConfig {
     private String apiRoot = "auth";
     private boolean enablePublicPage = true;
     private boolean enablePublicInfoApi = true;
+    /** Whether the public page and info API list the server's installed mods. */
+    private boolean enablePublicModList = false;
     private String publicPagePath = "/";
     private String publicInfoApiPath = "__server-info";
     @SerializedName("server-address")
@@ -104,6 +106,14 @@ public class ServerConfig {
 
     public void setPublicInfoApiEnabled(boolean enablePublicInfoApi) {
         this.enablePublicInfoApi = enablePublicInfoApi;
+    }
+
+    public boolean isPublicModListEnabled() {
+        return enablePublicModList;
+    }
+
+    public void setPublicModListEnabled(boolean enablePublicModList) {
+        this.enablePublicModList = enablePublicModList;
     }
 
     public String getServerName() {

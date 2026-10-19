@@ -294,7 +294,9 @@ public final class PublicPageService {
             serverConfig.getAdmin()
                 .isEnabled(),
             isDynmapInstalled(),
-            Collections.unmodifiableList(new ArrayList<>(resolveInstalledMods())),
+            serverConfig.isPublicModListEnabled()
+                ? Collections.unmodifiableList(new ArrayList<>(resolveInstalledMods()))
+                : null,
             readExistingFileBytes(resolveServerDirectoryFile("server-icon.png")),
             readExistingFileBytes(resolveServerDirectoryFile("server-icon.gif")));
     }
@@ -355,7 +357,8 @@ public final class PublicPageService {
             staticInfo.serverIconGif != null ? "animated" : (staticInfo.serverIconPng != null ? "static" : "fallback"));
         out.put("icons", icons);
 
-        out.put("modlist", staticInfo.modlist);
+        // Left out entirely unless the server shares it, so the page hides the section.
+        if (staticInfo.modlist != null) out.put("modlist", staticInfo.modlist);
 
         return out;
     }
