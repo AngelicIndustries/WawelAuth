@@ -18,7 +18,8 @@ public abstract class MixinGuiTransferOwnershipButton {
         method = "/^lambda\\$onClicked\\$\\d+$/",
         at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/nbt/NBTTagCompound;setString(Ljava/lang/String;Ljava/lang/String;)V"),
+            target = "Lnet/minecraft/nbt/NBTTagCompound;setString(Ljava/lang/String;Ljava/lang/String;)V",
+            remap = true),
         require = 1,
         remap = false)
     private void wawelauth$sendPlayerUuid(NBTTagCompound data, String key, String value) {
