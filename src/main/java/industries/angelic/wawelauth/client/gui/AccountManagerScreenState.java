@@ -1,0 +1,72 @@
+package industries.angelic.wawelauth.client.gui;
+
+import java.io.File;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
+import industries.angelic.wawelauth.wawelclient.ServerCapabilities;
+import industries.angelic.wawelauth.wawelclient.data.ClientAccount;
+import industries.angelic.wawelauth.wawelclient.data.ClientProvider;
+import industries.angelic.wawelauth.wawelcore.data.TextureType;
+
+final class AccountManagerScreenState {
+
+    ClientProvider selectedProvider;
+    ClientAccount selectedAccount;
+
+    long localAuthFingerprintCopiedUntilMs;
+    long profileUuidCopiedUntilMs;
+
+    ServerCapabilities connectedServerCapabilities;
+
+    long pendingRemoveAccountId = -1L;
+    String pendingRemoveAccountName;
+    boolean pendingRemoveAccountOffline;
+    String pendingProviderSettingsName;
+    String pendingProviderProxyName;
+    String pendingProviderDeleteName;
+    long pendingCredentialDeleteAccountId = -1L;
+    String pendingCredentialDeleteAccountName;
+    String pendingCredentialDeletePassword;
+
+    File selectedSkinFile;
+    File selectedCapeFile;
+    String textureUploadStatus = "";
+    long textureFilePickerRequestId;
+    boolean pendingTextureUploadSkin;
+    File pendingTextureUploadFile;
+    boolean pendingTextureUploadSlim;
+    TextureType pendingTextureResetType;
+
+    Map<String, Boolean> registerCapabilityByProvider = new HashMap<>();
+    Set<String> registerCapabilityProbeInFlight = new HashSet<>();
+    long nextStatusUiRefreshAtMs;
+
+    void resetForBuild() {
+        this.localAuthFingerprintCopiedUntilMs = 0L;
+        this.profileUuidCopiedUntilMs = 0L;
+        this.connectedServerCapabilities = null;
+        this.pendingRemoveAccountId = -1L;
+        this.pendingRemoveAccountName = null;
+        this.pendingRemoveAccountOffline = false;
+        this.pendingProviderSettingsName = null;
+        this.pendingProviderProxyName = null;
+        this.pendingProviderDeleteName = null;
+        this.pendingCredentialDeleteAccountId = -1L;
+        this.pendingCredentialDeleteAccountName = null;
+        this.pendingCredentialDeletePassword = null;
+        this.selectedSkinFile = null;
+        this.selectedCapeFile = null;
+        this.textureUploadStatus = "";
+        this.textureFilePickerRequestId++;
+        this.pendingTextureUploadSkin = true;
+        this.pendingTextureUploadFile = null;
+        this.pendingTextureUploadSlim = true;
+        this.pendingTextureResetType = null;
+        this.registerCapabilityByProvider = new HashMap<>();
+        this.registerCapabilityProbeInFlight = new HashSet<>();
+        this.nextStatusUiRefreshAtMs = 0L;
+    }
+}

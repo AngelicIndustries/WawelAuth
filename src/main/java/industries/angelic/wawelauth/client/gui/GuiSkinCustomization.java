@@ -1,0 +1,73 @@
+package industries.angelic.wawelauth.client.gui;
+
+import net.minecraft.client.gui.GuiButton;
+import net.minecraft.client.gui.GuiScreen;
+import net.minecraft.client.resources.I18n;
+
+import com.gtnewhorizon.gtnhlib.config.ConfigurationManager;
+
+import industries.angelic.wawelauth.api.SkinLayersHelper;
+import industries.angelic.wawelauth.client.render.skinlayers.SkinLayersConfig;
+import industries.angelic.wawelauth.client.skin.WearerSkinSettings;
+
+public class GuiSkinCustomization extends GuiScreen {
+
+    protected GuiScreen parentScreen;
+
+    public GuiSkinCustomization(GuiScreen parentScreen) {
+        this.parentScreen = parentScreen;
+    }
+
+    @Override
+    public void initGui() {
+        this.buttonList.clear();
+
+        this.buttonList.add(new GuiButton(-1, this.width / 2 - 100, this.height / 6 + 168, I18n.format("gui.done")));
+
+        for (SkinLayersHelper.EnumPlayerModelParts part : SkinLayersHelper.EnumPlayerModelParts.values()) {
+            int partID = part.id();
+            this.buttonList.add(
+                new GuiCustomToggleButton(
+                    partID + 1,
+                    this.width / 2 - 155 + ((partID) % 2) * 160,
+                    this.height / 6 + 24 * ((partID) >> 1),
+                    150,
+                    20,
+                    I18n.format(part.partName()),
+                    !WearerSkinSettings.isHidden(part.skinPart())));
+        }
+    }
+
+    @Override
+    public void onGuiClosed() {
+        ConfigurationManager.save(SkinLayersConfig.class);
+        // Persists the cape option and sends the settings, which carries the parts to the server.
+        this.mc.gameSettings.saveOptions();
+    }
+
+    @Override
+    public void drawScreen(int mouseX, int mouseY, float partialTicks) {
+        this.drawDefaultBackground();
+        this.drawCenteredString(
+            this.fontRendererObj,
+            I18n.format("wawelauth.gui.skincustomization.title"),
+            this.width / 2,
+            20,
+            16777215);
+        super.drawScreen(mouseX, mouseY, partialTicks);
+    }
+
+    @Override
+    protected void actionPerformed(GuiButton button) {
+        if (button instanceof GuiCustomToggleButton toggle) {
+            SkinLayersHelper.EnumPlayerModelParts part = SkinLayersHelper.EnumPlayerModelParts.fromId(button.id - 1);
+            if (part != null) {
+                toggle.toggle();
+                WearerSkinSettings.setHidden(part.skinPart(), !toggle.getEnabled());
+            }
+        } else if (button.id == -1) {
+            this.mc.displayGuiScreen(this.parentScreen);
+        }
+    }
+
+}

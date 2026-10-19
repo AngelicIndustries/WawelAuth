@@ -1,7 +1,7 @@
 {
   "required": true,
   "minVersion": "0.8.7-GTNH",
-  "package": "org.fentanylsolutions.wawelauth.mixins.late",
+  "package": "industries.angelic.wawelauth.mixins.late",
   "refmap": "mixins.wawelauth.refmap.json",
   "target": "@env(DEFAULT)",
   "compatibilityLevel": "JAVA_8"

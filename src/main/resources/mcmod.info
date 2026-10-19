@@ -6,15 +6,15 @@
 		"description": "Versatile authentication mod. Connect to any Yggdrasil-compatible server, or even host your own alongside the game server. Modern skins, 3D skin layers, animated capes.",
 		"version": "${modVersion}",
 		"mcversion": "${minecraftVersion}",
-		"url": "https://github.com/JackOfNoneTrades/WawelAuth",
+		"url": "https://github.com/AngelicIndustries/WawelAuth",
 		"updateUrl": "",
 		"authorList": ["jack"],
 		"credits": "GT:NH examplemod, MIT branch of 3D Skin Layers",
 		"logoFile": "assets/${modId}/Logo_Dragon_Outline.png",
 		"screenshots": [],
 		"parent": "",
-		"requiredMods": ["fentlib"],
-		"dependencies": ["fentlib"],
+		"requiredMods": ["angellib"],
+		"dependencies": ["angellib"],
 		"dependants": [],
 		"useDependencyInformation": false
 	}]

@@ -13,7 +13,7 @@ HARNESS_SOURCE = """
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 
-import org.fentanylsolutions.wawelauth.wawelcore.util.NetworkAddressUtil;
+import industries.angelic.wawelauth.wawelcore.util.NetworkAddressUtil;
 
 public final class NetworkAddressHarness {
     private NetworkAddressHarness() {}

@@ -1,0 +1,304 @@
+package industries.angelic.wawelauth.wawelclient;
+
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+
+import net.minecraft.client.Minecraft;
+
+import industries.angelic.angellib.util.StringUtil;
+import industries.angelic.wawelauth.WawelAuth;
+import industries.angelic.wawelauth.api.WawelTextureResolver;
+import industries.angelic.wawelauth.client.fakeworld.PreviewEntityRenderContext;
+import industries.angelic.wawelauth.wawelclient.data.ClientAccount;
+import industries.angelic.wawelauth.wawelclient.data.ClientProvider;
+import industries.angelic.wawelauth.wawelclient.http.YggdrasilHttpClient;
+import industries.angelic.wawelauth.wawelclient.storage.ClientAccountDAO;
+import industries.angelic.wawelauth.wawelclient.storage.ClientProviderDAO;
+import industries.angelic.wawelauth.wawelclient.storage.sqlite.ClientDatabase;
+import industries.angelic.wawelauth.wawelclient.storage.sqlite.SqliteClientAccountDAO;
+import industries.angelic.wawelauth.wawelclient.storage.sqlite.SqliteClientProviderDAO;
+
+/**
+ * Client module singleton. Owns the SQLite DB, provider registry, account manager,
+ * and background token refresh. Start from ClientProxy.init(), stop on shutdown.
+ */
+public class WawelClient {
+
+    private static WawelClient instance;
+    private static Thread shutdownHook;
+
+    private final ClientDatabase database;
+    private final ClientProviderDAO providerDAO;
+    private final ClientAccountDAO accountDAO;
+    private final YggdrasilHttpClient httpClient;
+    private final ProviderRegistry providerRegistry;
+    private final LocalAuthProviderResolver localAuthProviderResolver;
+    private final AccountManager accountManager;
+    private final SessionBridge sessionBridge;
+    private final ConnectionProviderCache connectionProviderCache;
+    private final WawelTextureResolver textureResolver;
+    private final File dataDir;
+
+    private WawelClient(File dataDir) {
+        WawelAuth.LOG.info("Starting WawelAuth client module...");
+        this.dataDir = dataDir;
+
+        if (!dataDir.exists() && !dataDir.mkdirs()) {
+            throw new RuntimeException("Failed to create client data directory: " + dataDir);
+        }
+
+        // Database
+        database = new ClientDatabase(new File(dataDir, "accounts.db"));
+        database.initialize();
+
+        // DAOs
+        providerDAO = new SqliteClientProviderDAO(database);
+        accountDAO = new SqliteClientAccountDAO(database);
+
+        // HTTP client
+        httpClient = new YggdrasilHttpClient();
+
+        // Provider registry
+        providerRegistry = new ProviderRegistry(providerDAO, httpClient);
+        providerRegistry.ensureDefaultProviders();
+        localAuthProviderResolver = new LocalAuthProviderResolver(providerDAO);
+
+        // Account manager
+        accountManager = new AccountManager(accountDAO, providerDAO, httpClient);
+        accountManager.startBackgroundRefresh();
+
+        // Session bridge
+        sessionBridge = new SessionBridge(httpClient, providerDAO, accountDAO, accountManager);
+        ClientStartupExtensions.start(httpClient, providerDAO, accountDAO, accountManager);
+
+        // Connection provider cache
+        connectionProviderCache = new ConnectionProviderCache();
+
+        // Skin resolver
+        textureResolver = new WawelTextureResolver(sessionBridge);
+
+        int prunedBindings = ServerBindingPersistence.clearMissingAccountBindings(accountManager);
+        if (prunedBindings > 0) {
+            WawelAuth.LOG.info("Cleared {} stale per-server account bindings on startup", prunedBindings);
+        }
+        if (SingleplayerAccountPersistence.clearMissingSelection(accountManager)) {
+            WawelAuth.LOG.info("Cleared stale singleplayer account selection on startup");
+        }
+
+        WawelAuth.LOG.info(
+            "WawelAuth client module started. {} accounts across {} providers.",
+            accountDAO.count(),
+            providerDAO.count());
+    }
+
+    public static synchronized void start(File dataDir) {
+        if (instance != null) {
+            WawelAuth.LOG.warn("WawelClient already running, ignoring start()");
+            return;
+        }
+        instance = new WawelClient(dataDir);
+
+        // JVM shutdown hook for crash safety
+        shutdownHook = new Thread(() -> {
+            WawelClient local = instance;
+            if (local != null) {
+                local.doStop();
+            }
+        }, "WawelAuth-ClientShutdown");
+        Runtime.getRuntime()
+            .addShutdownHook(shutdownHook);
+    }
+
+    public static synchronized void stop() {
+        if (instance == null) return;
+        instance.doStop();
+        instance = null;
+
+        // Clean shutdown, remove hook
+        if (shutdownHook != null) {
+            try {
+                Runtime.getRuntime()
+                    .removeShutdownHook(shutdownHook);
+            } catch (IllegalStateException ignored) {
+                // Already shutting down
+            }
+            shutdownHook = null;
+        }
+    }
+
+    private void doStop() {
+        WawelAuth.LOG.info("Stopping WawelAuth client module...");
+        ClientStartupExtensions.stop();
+        try {
+            accountManager.shutdown();
+        } catch (Exception e) {
+            WawelAuth.LOG.warn("Error shutting down account manager: {}", e.getMessage());
+        }
+        try {
+            textureResolver.shutdown();
+        } catch (Exception e) {
+            WawelAuth.LOG.warn("Error shutting down skin resolver: {}", e.getMessage());
+        }
+        try {
+            sessionBridge.shutdown();
+        } catch (Exception e) {
+            WawelAuth.LOG.warn("Error shutting down session bridge: {}", e.getMessage());
+        }
+        try {
+            database.close();
+        } catch (Exception e) {
+            WawelAuth.LOG.warn("Error closing client database: {}", e.getMessage());
+        }
+    }
+
+    public static WawelClient instance() {
+        return instance;
+    }
+
+    public ProviderRegistry getProviderRegistry() {
+        return providerRegistry;
+    }
+
+    public LocalAuthProviderResolver getLocalAuthProviderResolver() {
+        return localAuthProviderResolver;
+    }
+
+    public AccountManager getAccountManager() {
+        return accountManager;
+    }
+
+    public ClientProviderDAO getProviderDAO() {
+        return providerDAO;
+    }
+
+    public SessionBridge getSessionBridge() {
+        return sessionBridge;
+    }
+
+    public File getDataDir() {
+        return dataDir;
+    }
+
+    public WawelTextureResolver getTextureResolver() {
+        return textureResolver;
+    }
+
+    public YggdrasilHttpClient getHttpClient() {
+        return httpClient;
+    }
+
+    public ConnectionProviderCache getConnectionProviderCache() {
+        return connectionProviderCache;
+    }
+
+    /**
+     * Resolve the provider for a player UUID.
+     * Checks: connection cache, active account, local accounts.
+     * Returns null if unknown (caller shows Steve).
+     */
+    public ClientProvider resolvePlayerProvider(UUID playerUuid) {
+        // In-world on WA server: check connection cache
+        if (!PreviewEntityRenderContext.isRenderingInGui && Minecraft.getMinecraft().theWorld != null
+            && connectionProviderCache.isActive()) {
+            ClientProvider connectionProvider = connectionProviderCache.getPlayerProvider(playerUuid);
+            if (connectionProvider != null) {
+                return connectionProvider;
+            }
+        }
+
+        // In-world but no per-player match: use active account's provider
+        if (!PreviewEntityRenderContext.isRenderingInGui && Minecraft.getMinecraft().theWorld != null) {
+            return sessionBridge.getActiveProvider();
+        }
+
+        // Not in-world: check local accounts
+        if (playerUuid != null && accountDAO != null) {
+            for (ClientAccount account : accountDAO.listAll()) {
+                if (account != null && playerUuid.equals(account.getProfileUuid())) {
+                    String providerName = account.getProviderName();
+                    if (providerName != null && !providerName.trim()
+                        .isEmpty()) {
+                        ClientProvider provider = providerDAO.findByName(providerName);
+                        if (provider != null) {
+                            return provider;
+                        }
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    public List<ClientProvider> resolvePlayerProviderCandidates(UUID playerUuid) {
+        if (playerUuid == null) {
+            return Collections.emptyList();
+        }
+
+        if (!PreviewEntityRenderContext.isRenderingInGui && Minecraft.getMinecraft().theWorld != null
+            && connectionProviderCache.isActive()) {
+            ClientProvider connectionProvider = connectionProviderCache.getPlayerProvider(playerUuid);
+            if (connectionProvider != null) {
+                return Collections.singletonList(connectionProvider);
+            }
+        }
+
+        List<ClientProvider> providers = new ArrayList<>();
+        Set<String> seen = new LinkedHashSet<>();
+
+        for (ClientProvider provider : sessionBridge.getTrustedProviders()) {
+            addProviderCandidate(providers, seen, provider);
+        }
+
+        addProviderCandidate(providers, seen, resolvePlayerProvider(playerUuid));
+        return providers.isEmpty() ? Collections.emptyList() : providers;
+    }
+
+    private static void addProviderCandidate(List<ClientProvider> providers, Set<String> seen,
+        ClientProvider provider) {
+        if (provider == null) {
+            return;
+        }
+        if (seen.add(providerCandidateKey(provider))) {
+            providers.add(provider);
+        }
+    }
+
+    private static String providerCandidateKey(ClientProvider provider) {
+        String name = StringUtil.trimToNull(provider.getName());
+        if (name != null) {
+            return "name:" + name.toLowerCase();
+        }
+
+        String sessionUrl = StringUtil.trimToNull(provider.getSessionServerUrl());
+        if (sessionUrl != null) {
+            return "session:" + sessionUrl.toLowerCase();
+        }
+
+        String apiRoot = StringUtil.trimToNull(provider.getApiRoot());
+        if (apiRoot != null) {
+            return "api:" + apiRoot.toLowerCase();
+        }
+
+        return "identity:" + System.identityHashCode(provider);
+    }
+
+    /** Resolve provider by name, or null. */
+    public ClientProvider resolveProviderByName(String providerName) {
+        if (providerName != null && !providerName.trim()
+            .isEmpty()) {
+            return providerDAO.findByName(providerName);
+        }
+        return null;
+    }
+
+    /** Mojang provider. Only for singleplayer with no explicit account. */
+    public ClientProvider getMojangProvider() {
+        return providerDAO.findByName(BuiltinProviders.MOJANG_PROVIDER_NAME);
+    }
+}

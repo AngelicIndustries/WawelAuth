@@ -17,8 +17,8 @@ import org.gradle.language.jvm.tasks.ProcessResources
 import java.nio.charset.StandardCharsets
 import java.util.zip.ZipFile
 
-val fentMavenName = "Fent Maven"
-val fentMavenUrl = uri("https://maven.fentanylsolutions.org/releases")
+val angelicMavenName = "Angelic Maven"
+val angelicMavenUrl = uri("https://maven.angelic.industries/releases")
 
 fun wawelProp(name: String): String? = providers.gradleProperty(name).orNull?.trim()?.takeIf { it.isNotEmpty() }
 
@@ -31,30 +31,30 @@ val configuredCurseForgeRelations = wawelProp("curseForgeRelations").orEmpty()
 val configuredMinecraftVersion = wawelProp("minecraftVersion") ?: "1.7.10"
 val configuredUsesMixins = wawelProp("usesMixins")?.equals("true", ignoreCase = true) == true
 
-fun RepositoryHandler.keepFentMavenFirst() {
-    fun currentFentRepo(): MavenArtifactRepository? = withType(MavenArtifactRepository::class.java)
-        .firstOrNull { it.url == fentMavenUrl || it.name == fentMavenName }
+fun RepositoryHandler.keepAngelicMavenFirst() {
+    fun currentAngelicRepo(): MavenArtifactRepository? = withType(MavenArtifactRepository::class.java)
+        .firstOrNull { it.url == angelicMavenUrl || it.name == angelicMavenName }
 
-    fun promoteFentRepo() {
-        val fentRepo = currentFentRepo() ?: maven {
-            name = fentMavenName
-            url = fentMavenUrl
+    fun promoteAngelicRepo() {
+        val angelicRepo = currentAngelicRepo() ?: maven {
+            name = angelicMavenName
+            url = angelicMavenUrl
         }
-        if (firstOrNull() !== fentRepo) {
-            remove(fentRepo)
-            addFirst(fentRepo)
+        if (firstOrNull() !== angelicRepo) {
+            remove(angelicRepo)
+            addFirst(angelicRepo)
         }
     }
 
-    promoteFentRepo()
+    promoteAngelicRepo()
     whenObjectAdded {
-        promoteFentRepo()
+        promoteAngelicRepo()
     }
 }
 
 gradle.allprojects {
-    repositories.keepFentMavenFirst()
-    buildscript.repositories.keepFentMavenFirst()
+    repositories.keepAngelicMavenFirst()
+    buildscript.repositories.keepAngelicMavenFirst()
 }
 
 extensions.findByType<GTNHGradlePlugin.GTNHExtension>()
@@ -152,7 +152,7 @@ val curseForgeReplacementJar = tasks.register<Jar>("curseForgeReplacementJar") {
     dependsOn(tasks.named(curseForgeReplacementSourceSet.classesTaskName))
     archiveClassifier.set("curseforge-replacement-dev")
     from(curseForgeReplacementSourceSet.output.classesDirs) {
-        include("org/fentanylsolutions/wawelauth/wawelclient/ClientStartupExtensions.class")
+        include("industries/angelic/wawelauth/wawelclient/ClientStartupExtensions.class")
     }
 }
 
@@ -197,19 +197,19 @@ val curseForgeJar = tasks.register<Jar>("curseForgeJar") {
         exclude(
             "META-INF/MANIFEST.MF",
             "assets/wawelauth/lang/**/*.lang",
-            "org/fentanylsolutions/wawelauth/client/gui/LauncherImportPromptHandler.class",
-            "org/fentanylsolutions/wawelauth/client/gui/LauncherImportPromptScreen.class",
-            "org/fentanylsolutions/wawelauth/client/gui/LauncherImportPromptScreen\$*.class",
-            "org/fentanylsolutions/wawelauth/wawelclient/ClientStartupExtensions.class",
-            "org/fentanylsolutions/wawelauth/wawelclient/LauncherAccountImport.class",
-            "org/fentanylsolutions/wawelauth/wawelclient/LauncherAccountImport\$*.class",
-            "org/fentanylsolutions/wawelauth/wawelclient/LauncherImportSuppression.class",
-            "org/fentanylsolutions/wawelauth/wawelclient/LauncherImportSuppression\$*.class",
+            "industries/angelic/wawelauth/client/gui/LauncherImportPromptHandler.class",
+            "industries/angelic/wawelauth/client/gui/LauncherImportPromptScreen.class",
+            "industries/angelic/wawelauth/client/gui/LauncherImportPromptScreen\$*.class",
+            "industries/angelic/wawelauth/wawelclient/ClientStartupExtensions.class",
+            "industries/angelic/wawelauth/wawelclient/LauncherAccountImport.class",
+            "industries/angelic/wawelauth/wawelclient/LauncherAccountImport\$*.class",
+            "industries/angelic/wawelauth/wawelclient/LauncherImportSuppression.class",
+            "industries/angelic/wawelauth/wawelclient/LauncherImportSuppression\$*.class",
         )
     }
     from(curseForgeReplacementJar.flatMap { it.archiveFile }.map { zipTree(it) }) {
         exclude("META-INF/MANIFEST.MF")
-        include("org/fentanylsolutions/wawelauth/wawelclient/ClientStartupExtensions.class")
+        include("industries/angelic/wawelauth/wawelclient/ClientStartupExtensions.class")
     }
     from(curseForgeLangDirectory) {
         into("assets/wawelauth/lang")
@@ -436,8 +436,8 @@ val verifyDistributionJars = tasks.register("verifyDistributionJars") {
             ZipFile(reobfJar.get().archiveFile.get().asFile).use { slim ->
                 // Preserve the unrestricted implementation and its UI, not the CurseForge replacements.
                 listOf(
-                    "org/fentanylsolutions/wawelauth/wawelclient/ClientStartupExtensions.class",
-                    "org/fentanylsolutions/wawelauth/wawelclient/LauncherAccountImport.class",
+                    "industries/angelic/wawelauth/wawelclient/ClientStartupExtensions.class",
+                    "industries/angelic/wawelauth/wawelclient/LauncherAccountImport.class",
                     "assets/wawelauth/lang/en_US.lang",
                     dependencyDescriptor,
                 ).forEach { name ->
@@ -487,7 +487,7 @@ val verifyCurseForgeJars = tasks.register("verifyCurseForgeJars") {
                                 "CurseForge archive ${archive.name} contains forbidden entry ${entry.name}",
                             )
                         }
-                        val shouldScan = entry.name.startsWith("org/fentanylsolutions/wawelauth/") ||
+                        val shouldScan = entry.name.startsWith("industries/angelic/wawelauth/") ||
                             entry.name.startsWith("assets/wawelauth/lang/")
                         if (entry.isDirectory || !shouldScan) {
                             continue

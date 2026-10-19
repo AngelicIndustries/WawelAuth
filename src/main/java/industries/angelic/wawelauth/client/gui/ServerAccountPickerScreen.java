@@ -1,0 +1,782 @@
+package industries.angelic.wawelauth.client.gui;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
+import java.util.function.IntSupplier;
+
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Gui;
+import net.minecraft.client.multiplayer.ServerAddress;
+import net.minecraft.client.multiplayer.ServerData;
+
+import com.cleanroommc.modularui.api.IPanelHandler;
+import com.cleanroommc.modularui.api.drawable.IDrawable;
+import com.cleanroommc.modularui.api.drawable.IKey;
+import com.cleanroommc.modularui.api.layout.IViewport;
+import com.cleanroommc.modularui.api.layout.IViewportStack;
+import com.cleanroommc.modularui.api.widget.IWidget;
+import com.cleanroommc.modularui.drawable.ColorType;
+import com.cleanroommc.modularui.drawable.Rectangle;
+import com.cleanroommc.modularui.drawable.UITexture;
+import com.cleanroommc.modularui.factory.ClientGUI;
+import com.cleanroommc.modularui.screen.ModularPanel;
+import com.cleanroommc.modularui.screen.viewport.ModularGuiContext;
+import com.cleanroommc.modularui.theme.WidgetThemeEntry;
+import com.cleanroommc.modularui.utils.Alignment;
+import com.cleanroommc.modularui.utils.HoveredWidgetList;
+import com.cleanroommc.modularui.widget.Widget;
+import com.cleanroommc.modularui.widgets.ButtonWidget;
+import com.cleanroommc.modularui.widgets.Dialog;
+import com.cleanroommc.modularui.widgets.ListWidget;
+import com.cleanroommc.modularui.widgets.TextWidget;
+import com.cleanroommc.modularui.widgets.layout.Column;
+import com.cleanroommc.modularui.widgets.layout.Row;
+
+import cpw.mods.fml.relauncher.Side;
+import cpw.mods.fml.relauncher.SideOnly;
+import industries.angelic.angellib.util.GuiText;
+import industries.angelic.angellib.util.drop.GuiTransitionScheduler;
+import industries.angelic.wawelauth.wawelclient.IServerDataExt;
+import industries.angelic.wawelauth.wawelclient.ProviderRegistry;
+import industries.angelic.wawelauth.wawelclient.ServerBindingPersistence;
+import industries.angelic.wawelauth.wawelclient.ServerCapabilities;
+import industries.angelic.wawelauth.wawelclient.ServerConnectionProxySupport;
+import industries.angelic.wawelauth.wawelclient.SingleplayerAccountPersistence;
+import industries.angelic.wawelauth.wawelclient.WawelClient;
+import industries.angelic.wawelauth.wawelclient.data.AccountStatus;
+import industries.angelic.wawelauth.wawelclient.data.ClientAccount;
+import industries.angelic.wawelauth.wawelclient.data.ClientProvider;
+import industries.angelic.wawelauth.wawelclient.data.ProviderProxySettings;
+import industries.angelic.wawelauth.wawelclient.http.ProviderProxySupport;
+
+@SideOnly(Side.CLIENT)
+public class ServerAccountPickerScreen extends ParentAwareModularScreen {
+
+    private static final ColorType MANAGE_PROVIDER_ICON_COLOR_TYPE = new ColorType(
+        "wawelauth:server_picker_manage_provider_icon",
+        theme -> WawelAuthStyle.TEXT_SECONDARY);
+    private static final ColorType MANAGE_PROVIDER_ICON_HOVER_COLOR_TYPE = new ColorType(
+        "wawelauth:server_picker_manage_provider_icon_hover",
+        theme -> WawelAuthStyle.TEXT_PRIMARY);
+    private static final IDrawable MANAGE_PROVIDER_ICON = manageProviderIcon(
+        "wawelauth:server_picker_manage_provider_icon",
+        MANAGE_PROVIDER_ICON_COLOR_TYPE);
+    private static final IDrawable MANAGE_PROVIDER_ICON_HOVER = manageProviderIcon(
+        "wawelauth:server_picker_manage_provider_icon_hover",
+        MANAGE_PROVIDER_ICON_HOVER_COLOR_TYPE);
+    private static final int ACCOUNT_LABEL_MAX_WIDTH_PX = 153;
+    private static final int ACCOUNT_ENTRY_HEIGHT = 16;
+    private static final float ACCOUNT_FACE_IDLE_ALPHA = 0.6f;
+    private static final int ACCOUNT_LIST_TOP_MARGIN = 4;
+    private static final int ACCOUNT_LIST_MAX_VISIBLE_ROWS = 8;
+    private static final int CONTENT_PADDING = 6;
+    private static final int CONTENT_WIDTH_OFFSET = -CONTENT_PADDING * 2;
+    private static final int CLOSE_BUTTON_SIZE = 12;
+    private static final int CLOSE_ICON_SIZE = 7;
+    private static final int TITLE_WIDTH_OFFSET = CONTENT_WIDTH_OFFSET - CLOSE_BUTTON_SIZE - 4;
+    private static final IDrawable CLOSE_ICON = closeIcon(() -> WawelAuthStyle.TEXT_BUTTON_IDLE);
+    private static final IDrawable CLOSE_ICON_HOVER = closeIcon(() -> WawelAuthStyle.TEXT_PRIMARY);
+    private static final int PICKER_PANEL_HEIGHT_SINGLEPLAYER = 204;
+    private static final int PICKER_PANEL_HEIGHT_SERVER_ONLY = 202;
+    private static final int PICKER_PANEL_HEIGHT_SERVER_WITH_LOCAL_AUTH = 246;
+
+    /**
+     * ModularScreen's constructor calls buildUI() immediately, before subclass
+     * field assignments execute. Pass serverData through a static field so it
+     * is available during buildUI(). Single-threaded (render thread only).
+     */
+    private static ServerData pendingServerData;
+    private static String pendingStatusMessage;
+    private static boolean pendingSingleplayerMode;
+
+    private final ServerData serverData;
+    private final boolean singleplayerMode;
+
+    public static void open(ServerData serverData) {
+        open(serverData, null);
+    }
+
+    public static void open(ServerData serverData, String statusMessage) {
+        pendingServerData = serverData;
+        pendingStatusMessage = statusMessage;
+        pendingSingleplayerMode = false;
+        ClientGUI.open(new ServerAccountPickerScreen());
+    }
+
+    public static void openSingleplayer() {
+        pendingServerData = null;
+        pendingStatusMessage = null;
+        pendingSingleplayerMode = true;
+        ClientGUI.open(new ServerAccountPickerScreen());
+    }
+
+    private ServerAccountPickerScreen() {
+        super("wawelauth");
+        openParentOnClose(true);
+        this.serverData = pendingServerData;
+        this.singleplayerMode = pendingSingleplayerMode;
+        pendingServerData = null;
+        pendingSingleplayerMode = false;
+    }
+
+    @Override
+    public ModularPanel buildUI(ModularGuiContext context) {
+        boolean singleplayerMode = pendingSingleplayerMode || this.singleplayerMode;
+        ServerData targetServerData = pendingServerData != null ? pendingServerData : serverData;
+        if (targetServerData == null && !singleplayerMode) {
+            ModularPanel panel = ModularPanel.defaultPanel("wawelauth_server_picker", 200, 80);
+            WawelAuthStyle.dialog(panel);
+            Column content = new Column();
+            content.widthRel(1.0f)
+                .heightRel(1.0f)
+                .padding(CONTENT_PADDING)
+                .background(IDrawable.EMPTY)
+                .disableHoverBackground()
+                .child(
+                    new TextWidget<>(GuiText.key("wawelauth.gui.common.no_server_selected"))
+                        .widthRelOffset(1.0f, TITLE_WIDTH_OFFSET)
+                        .height(14)
+                        .color(WawelAuthStyle.THEME_LIGHTER));
+            return panel.child(content)
+                .child(closeButton(panel));
+        }
+
+        WawelClient client = WawelClient.instance();
+
+        IServerDataExt ext = null;
+        String title;
+        String statusMessage = singleplayerMode ? null : pendingStatusMessage;
+        ServerCapabilities localAuthCapabilities = null;
+        boolean wawelAuthServer = false;
+        boolean localAuthAvailable = false;
+        String[] trustedLocalProviderName = { null };
+        long selectedAccountId;
+
+        if (singleplayerMode) {
+            title = GuiText.tr("wawelauth.gui.singleplayer_picker.title");
+            if (client != null) {
+                SingleplayerAccountPersistence.clearMissingSelection(client.getAccountManager());
+            }
+            selectedAccountId = SingleplayerAccountPersistence.getSelectedAccountId();
+        } else {
+            ext = (IServerDataExt) targetServerData;
+            String serverName = targetServerData.serverName != null ? targetServerData.serverName
+                : GuiText.tr("wawelauth.gui.common.server");
+            title = GuiText.tr("wawelauth.gui.server_picker.title", serverName);
+
+            ServerCapabilities capabilities = ext.getWawelCapabilities();
+            localAuthCapabilities = ServerBindingPersistence.getEffectiveLocalAuthCapabilities(targetServerData);
+            wawelAuthServer = capabilities != null && capabilities.isWawelAuthAdvertised();
+            localAuthAvailable = localAuthCapabilities != null && localAuthCapabilities.isLocalAuthSupported()
+                && notBlank(localAuthCapabilities.getLocalAuthApiRoot())
+                && notBlank(localAuthCapabilities.getLocalAuthPublicKeyFingerprint());
+            selectedAccountId = ext.getWawelAccountId();
+        }
+        pendingStatusMessage = null;
+
+        List<ClientAccount> allAccounts = client != null ? new ArrayList<>(
+            client.getAccountManager()
+                .listAccounts())
+            : new ArrayList<ClientAccount>();
+        Collections.sort(
+            allAccounts,
+            Comparator.comparing(ServerAccountPickerScreen::sortKeyForAccount, String.CASE_INSENSITIVE_ORDER)
+                .thenComparing(
+                    account -> ProviderDisplayName.displayName(account.getProviderName()),
+                    String.CASE_INSENSITIVE_ORDER)
+                .thenComparingLong(ClientAccount::getId));
+
+        boolean showLocalAuthControls = !singleplayerMode && localAuthCapabilities != null
+            && localAuthCapabilities.isLocalAuthSupported();
+        boolean showLocalAuthActions = wawelAuthServer && showLocalAuthControls;
+        int accountRowCount = allAccounts.size() + (singleplayerMode ? 1 : 0);
+        int visibleRowCount = Math.max(1, Math.min(accountRowCount, ACCOUNT_LIST_MAX_VISIBLE_ROWS));
+        int listHeight = visibleRowCount * ACCOUNT_ENTRY_HEIGHT;
+
+        int baseHeight = 12 + 14 + ACCOUNT_LIST_TOP_MARGIN * 2 + 18; // padding + title + list margins + manage btn
+        if (!singleplayerMode) baseHeight += 21; // server proxy btn
+        if (showLocalAuthControls) baseHeight += 21; // manage local auth btn
+        if (showLocalAuthActions) baseHeight += 23; // login/register row
+        if (statusMessage != null && !statusMessage.isEmpty()) baseHeight += 14;
+
+        int panelHeight = baseHeight + listHeight;
+        net.minecraft.client.gui.ScaledResolution sr = new net.minecraft.client.gui.ScaledResolution(
+            Minecraft.getMinecraft(),
+            Minecraft.getMinecraft().displayWidth,
+            Minecraft.getMinecraft().displayHeight);
+        int maxPanelHeight = sr.getScaledHeight() - 10;
+        if (panelHeight > maxPanelHeight) {
+            visibleRowCount = Math.max(1, (maxPanelHeight - baseHeight) / ACCOUNT_ENTRY_HEIGHT);
+            listHeight = visibleRowCount * ACCOUNT_ENTRY_HEIGHT;
+            panelHeight = baseHeight + listHeight;
+        }
+
+        ModularPanel panel = ModularPanel.defaultPanel("wawelauth_server_picker", 200, panelHeight);
+        WawelAuthStyle.dialog(panel);
+
+        final ServerData serverDataRef = targetServerData;
+        final IServerDataExt serverExt = ext;
+        final ServerCapabilities localAuthCapabilitiesRef = localAuthCapabilities;
+        final IPanelHandler serverProxyDialogHandler = !singleplayerMode && serverExt != null
+            ? IPanelHandler.simple(panel, (parent, player) -> buildServerProxyDialog(serverDataRef), true)
+            : null;
+
+        LoginDialog loginDialog = LoginDialog.attach(panel, account -> {
+            if (account == null) return;
+            trustedLocalProviderName[0] = account.getProviderName();
+            if (serverExt == null || serverDataRef == null) {
+                return;
+            }
+            serverExt.setWawelAccountId(account.getId());
+            serverExt.setWawelProviderName(account.getProviderName());
+            ServerBindingPersistence.markServerBindingOrigin(serverDataRef);
+            ServerBindingPersistence.persistServerSelection(serverDataRef);
+            String successMessage = GuiText.tr(
+                "wawelauth.gui.server_picker.status.bound",
+                account.getProfileName() != null ? account.getProfileName() : "?");
+            GuiTransitionScheduler
+                .transition(panel, () -> ServerAccountPickerScreen.open(serverDataRef, successMessage));
+        });
+        RegisterDialog registerDialog = RegisterDialog.attach(panel, success -> {
+            if (Boolean.TRUE.equals(success) && trustedLocalProviderName[0] != null) {
+                loginDialog.openAfterRegister(trustedLocalProviderName[0]);
+            }
+        });
+
+        ListWidget<IWidget, ?> accountList = new AccountListWidget();
+        WawelAuthStyle.styleList(accountList);
+        accountList.widthRelOffset(1.0f, CONTENT_WIDTH_OFFSET)
+            .height(listHeight);
+
+        if (singleplayerMode) {
+            accountList.child(buildSingleplayerClearEntry(selectedAccountId, panel));
+        }
+        for (ClientAccount account : allAccounts) {
+            if (singleplayerMode) {
+                accountList.child(
+                    buildAccountEntry(
+                        account,
+                        selectedAccountId,
+                        panel,
+                        selected -> SingleplayerAccountPersistence.setSelectedAccountId(selected.getId())));
+            } else {
+                accountList.child(buildAccountEntry(account, selectedAccountId, panel, selected -> {
+                    if (serverExt == null || serverDataRef == null) {
+                        return;
+                    }
+                    serverExt.setWawelAccountId(selected.getId());
+                    serverExt.setWawelProviderName(selected.getProviderName());
+                    ServerBindingPersistence.markServerBindingOrigin(serverDataRef);
+                    ServerBindingPersistence.persistServerSelection(serverDataRef);
+                }));
+            }
+        }
+
+        accountList.margin(0, ACCOUNT_LIST_TOP_MARGIN);
+
+        ButtonWidget<?> manageLocalAuthBtn = new ButtonWidget<>();
+        manageLocalAuthBtn.widthRelOffset(1.0f, CONTENT_WIDTH_OFFSET)
+            .height(18)
+            .margin(0, 3, 0, 0)
+            .onMousePressed(mouseButton -> {
+                GuiTransitionScheduler.transition(panel, () -> AccountManagerScreen.openForLocalAuth(targetServerData));
+                return true;
+            });
+        WawelAuthStyle.textButton(manageLocalAuthBtn, 180, "wawelauth.gui.server_picker.manage_local_auth");
+        manageLocalAuthBtn.setEnabled(localAuthAvailable);
+
+        ButtonWidget<?> serverProxyBtn = new ButtonWidget<>();
+        serverProxyBtn.widthRelOffset(1.0f, CONTENT_WIDTH_OFFSET)
+            .height(18)
+            .margin(0, 3, 0, 0)
+            .onMousePressed(mouseButton -> {
+                if (serverProxyDialogHandler != null) {
+                    serverProxyDialogHandler.deleteCachedPanel();
+                    serverProxyDialogHandler.openPanel();
+                }
+                return true;
+            });
+        WawelAuthStyle.textButton(serverProxyBtn, 180, "wawelauth.gui.server_picker.server_proxy");
+        serverProxyBtn.setEnabled(!singleplayerMode && serverProxyDialogHandler != null);
+
+        Column content = new Column();
+        content.widthRel(1.0f)
+            .heightRel(1.0f)
+            .padding(CONTENT_PADDING)
+            .background(IDrawable.EMPTY)
+            .disableHoverBackground();
+        content.child(
+            new TextWidget<>(IKey.str(title)).widthRelOffset(1.0f, TITLE_WIDTH_OFFSET)
+                .height(14)
+                .color(WawelAuthStyle.THEME_LIGHTER));
+        content.child(accountList);
+        if (statusMessage != null && !statusMessage.isEmpty()) {
+            content.child(
+                new TextWidget<>(IKey.str(statusMessage)).color(WawelAuthStyle.SUCCESS)
+                    .widthRelOffset(1.0f, CONTENT_WIDTH_OFFSET)
+                    .height(10)
+                    .margin(0, 2));
+        }
+        ButtonWidget<?> manageAccountsBtn = new ButtonWidget<>();
+        manageAccountsBtn.widthRelOffset(1.0f, CONTENT_WIDTH_OFFSET)
+            .height(18)
+            .onMousePressed(mouseButton -> {
+                GuiTransitionScheduler.transition(panel, () -> ClientGUI.open(new AccountManagerScreen()));
+                return true;
+            });
+        WawelAuthStyle.textButton(manageAccountsBtn, 180, "wawelauth.gui.common.manage_accounts");
+        content.child(manageAccountsBtn);
+        if (showLocalAuthControls) {
+            content.child(manageLocalAuthBtn);
+        }
+        if (!singleplayerMode) {
+            content.child(serverProxyBtn);
+        }
+
+        if (showLocalAuthActions) {
+            ButtonWidget<?> loginLocalBtn = new ButtonWidget<>();
+            loginLocalBtn.width(90)
+                .height(18);
+            WawelAuthStyle.textButton(loginLocalBtn, 82, "wawelauth.gui.common.login");
+            loginLocalBtn.setEnabled(localAuthAvailable);
+            loginLocalBtn.onMousePressed(mouseButton -> {
+                openLocalAuthAction(
+                    targetServerData,
+                    localAuthCapabilitiesRef,
+                    panel,
+                    trustedLocalProviderName,
+                    loginDialog,
+                    registerDialog,
+                    false);
+                return true;
+            });
+
+            ButtonWidget<?> registerLocalBtn = new ButtonWidget<>();
+            registerLocalBtn.width(90)
+                .height(18);
+            WawelAuthStyle.textButton(registerLocalBtn, 82, "wawelauth.gui.common.register");
+            registerLocalBtn.setEnabled(localAuthAvailable);
+            registerLocalBtn.onMousePressed(mouseButton -> {
+                openLocalAuthAction(
+                    targetServerData,
+                    localAuthCapabilitiesRef,
+                    panel,
+                    trustedLocalProviderName,
+                    loginDialog,
+                    registerDialog,
+                    true);
+                return true;
+            });
+
+            content.child(new Widget<>().size(1, 3))
+                .child(
+                    new Row().widthRelOffset(1.0f, CONTENT_WIDTH_OFFSET)
+                        .height(20)
+                        .child(loginLocalBtn)
+                        .child(new Widget<>().size(6, 18))
+                        .child(registerLocalBtn));
+        }
+
+        panel.child(content)
+            .child(closeButton(panel));
+
+        return panel;
+    }
+
+    private static ButtonWidget<?> closeButton(ModularPanel panel) {
+        ButtonWidget<?> button = new ButtonWidget<>();
+        WawelAuthStyle.iconButton(button);
+        button.size(CLOSE_BUTTON_SIZE, CLOSE_BUTTON_SIZE)
+            .right(CONTENT_PADDING)
+            .top(CONTENT_PADDING)
+            .background(IDrawable.EMPTY)
+            .hoverBackground(WawelAuthStyle.rect(WawelAuthStyle.BUTTON_HOVER))
+            .overlay(CLOSE_ICON)
+            .hoverOverlay(CLOSE_ICON_HOVER)
+            .addTooltipLine(GuiText.tr("wawelauth.gui.common.close"))
+            .onMousePressed(mouseButton -> {
+                panel.closeIfOpen();
+                return true;
+            });
+        return button;
+    }
+
+    private static IDrawable closeIcon(IntSupplier color) {
+        return (context, x, y, width, height, widgetTheme) -> {
+            int left = x + (width - CLOSE_ICON_SIZE) / 2;
+            int top = y + (height - CLOSE_ICON_SIZE) / 2;
+            int argb = color.getAsInt();
+            for (int i = 0; i < CLOSE_ICON_SIZE; i++) {
+                Gui.drawRect(left + i, top + i, left + i + 1, top + i + 1, argb);
+                Gui.drawRect(left + CLOSE_ICON_SIZE - 1 - i, top + i, left + CLOSE_ICON_SIZE - i, top + i + 1, argb);
+            }
+        };
+    }
+
+    private static void openLocalAuthAction(ServerData targetServerData, ServerCapabilities capabilities,
+        ModularPanel panel, String[] trustedLocalProviderName, LoginDialog loginDialog, RegisterDialog registerDialog,
+        boolean register) {
+        if (capabilities == null) {
+            return;
+        }
+
+        WawelClient client = WawelClient.instance();
+        if (client == null) {
+            return;
+        }
+
+        ClientProvider trustedProvider = client.getLocalAuthProviderResolver()
+            .findExisting(capabilities);
+        if (trustedProvider == null) {
+            CompletableFuture.supplyAsync(
+                () -> client.getLocalAuthProviderResolver()
+                    .resolveOrCreate(capabilities))
+                .whenComplete(
+                    (provider, err) -> Minecraft.getMinecraft()
+                        .func_152344_a(() -> {
+                            if (err != null || provider == null) {
+                                GuiTransitionScheduler
+                                    .transition(panel, () -> AccountManagerScreen.openForLocalAuth(targetServerData));
+                                return;
+                            }
+                            openLocalAuthDialog(
+                                provider.getName(),
+                                trustedLocalProviderName,
+                                loginDialog,
+                                registerDialog,
+                                register);
+                        }));
+            return;
+        }
+
+        openLocalAuthDialog(trustedProvider.getName(), trustedLocalProviderName, loginDialog, registerDialog, register);
+    }
+
+    private static void openLocalAuthDialog(String providerName, String[] trustedLocalProviderName,
+        LoginDialog loginDialog, RegisterDialog registerDialog, boolean register) {
+        trustedLocalProviderName[0] = providerName;
+        if (register) {
+            registerDialog.open(providerName);
+        } else {
+            loginDialog.open(providerName);
+        }
+    }
+
+    private Dialog<Boolean> buildServerProxyDialog(ServerData targetServerData) {
+        if (targetServerData == null || !(targetServerData instanceof IServerDataExt)) {
+            Dialog<Boolean> dialog = new Dialog<>("wawelauth_server_proxy");
+            dialog.setCloseOnOutOfBoundsClick(false);
+            return ProxySettingsDialog.messageDialog(dialog, "wawelauth.gui.common.no_server_selected");
+        }
+
+        IServerDataExt ext = (IServerDataExt) targetServerData;
+        ServerAddress serverAddress = ServerAddress.func_78860_a(targetServerData.serverIP);
+        final String targetHost = serverAddress != null ? serverAddress.getIP() : targetServerData.serverIP;
+        final int targetPort = serverAddress != null ? serverAddress.getPort() : 25565;
+        final String serverName = notBlank(targetServerData.serverName) ? targetServerData.serverName
+            : GuiText.tr("wawelauth.gui.common.server");
+        final String targetLine = targetHost + ":" + targetPort;
+
+        ProxySettingsDialog.Config cfg = new ProxySettingsDialog.Config();
+        cfg.name = "wawelauth_server_proxy";
+        cfg.height = 236;
+        cfg.subjectLines = Arrays.asList(
+            GuiText.key("wawelauth.gui.server_picker.proxy_server_line", serverName),
+            GuiText.key("wawelauth.gui.server_picker.proxy_target_line", targetLine));
+        cfg.initialSettings = ServerConnectionProxySupport.copySettings(ext.getWawelServerProxySettings());
+        cfg.secondaryStatusKey = "wawelauth.gui.server_picker.proxy_status_server";
+        cfg.secondaryTestingText = GuiText.tr("wawelauth.gui.server_picker.proxy_testing_server");
+        cfg.finisher = formSettings -> {
+            ProviderProxySettings normalized = ServerConnectionProxySupport.normalizeSettings(formSettings);
+            ServerConnectionProxySupport.validateSettings(normalized);
+            return normalized;
+        };
+        cfg.probe = formSettings -> probeServerProxy(targetHost, targetPort, formSettings);
+        cfg.saver = formSettings -> {
+            ext.setWawelServerProxySettings(formSettings);
+            ServerBindingPersistence.persistServerSelection(targetServerData);
+        };
+        return ProxySettingsDialog.build(cfg);
+    }
+
+    private ProxySettingsDialog.ProbeResult probeServerProxy(String targetHost, int targetPort,
+        ProviderProxySettings settings) {
+        ProviderProxySettings normalized = ServerConnectionProxySupport.normalizeSettings(settings);
+        ServerConnectionProxySupport.validateSettings(normalized);
+
+        ProxySettingsDialog.ProbeResult result = new ProxySettingsDialog.ProbeResult();
+        try {
+            ProviderProxySupport.probeEndpoint(normalized, 10_000);
+            result.proxyOutcome = ProviderRegistry.ProbeOutcome.SUCCESS;
+            result.proxyText = GuiText.tr("wawelauth.gui.server_picker.proxy_status_ok");
+        } catch (Exception e) {
+            result.proxyOutcome = ProviderRegistry.ProbeOutcome.ERROR;
+            result.proxyText = describeProxyProbeFailure(normalized, e);
+            return result;
+        }
+
+        try {
+            ServerConnectionProxySupport.probeGameServerConnection(targetHost, targetPort, normalized);
+            result.secondaryOutcome = ProviderRegistry.ProbeOutcome.SUCCESS;
+            result.secondaryText = GuiText
+                .tr("wawelauth.gui.server_picker.proxy_server_ok", targetHost + ":" + targetPort);
+        } catch (Exception e) {
+            result.secondaryOutcome = ProviderRegistry.ProbeOutcome.ERROR;
+            result.secondaryText = describeServerProbeFailure(targetHost, targetPort, e);
+        }
+        return result;
+    }
+
+    private static String describeProxyProbeFailure(ProviderProxySettings settings, Throwable error) {
+        String target = settings.getHost() + ":" + settings.getPort();
+        String detail = firstMeaningfulMessage(error);
+        return detail != null ? "Proxy test failed via " + target + ": " + detail : "Proxy test failed via " + target;
+    }
+
+    private static String describeServerProbeFailure(String host, int port, Throwable error) {
+        String detail = firstMeaningfulMessage(error);
+        String target = host + ":" + port;
+        return detail != null ? "Game server test failed via proxy to " + target + ": " + detail
+            : "Game server test failed via proxy to " + target;
+    }
+
+    private static String firstMeaningfulMessage(Throwable error) {
+        Throwable current = error;
+        while (current != null) {
+            String message = current.getMessage();
+            if (message != null) {
+                String trimmed = message.trim();
+                if (!trimmed.isEmpty() && !trimmed.startsWith("java.lang.RuntimeException:")) {
+                    return trimmed;
+                }
+            }
+            current = current.getCause();
+        }
+        return null;
+    }
+
+    private Row buildAccountEntry(ClientAccount account, long selectedAccountId, ModularPanel panel,
+        Consumer<ClientAccount> onSelect) {
+        AccountStatus status = getLiveStatus(account);
+        int statusColor = StatusColors.getColor(status);
+        String profileName = account.getProfileName() != null ? account.getProfileName() : "?";
+        String providerName = ProviderDisplayName.displayName(account.getProviderName());
+        boolean isSelected = selectedAccountId == account.getId();
+
+        ButtonWidget<?> manageButton = new ButtonWidget<>();
+        WawelAuthStyle.iconButton(manageButton);
+        manageButton.size(ACCOUNT_ENTRY_HEIGHT, ACCOUNT_ENTRY_HEIGHT)
+            .background(WawelAuthStyle.rect(WawelAuthStyle.BUTTON_IDLE))
+            .hoverBackground(WawelAuthStyle.rect(WawelAuthStyle.BUTTON_HOVER))
+            .overlay(MANAGE_PROVIDER_ICON)
+            .hoverOverlay(MANAGE_PROVIDER_ICON_HOVER)
+            .addTooltipLine(GuiText.tr("wawelauth.gui.server_picker.manage_account"))
+            .onMousePressed(mouseButton -> {
+                GuiTransitionScheduler.transition(
+                    panel,
+                    () -> AccountManagerScreen.openForProvider(account.getProviderName(), account.getId()));
+                return true;
+            });
+
+        AccountSelectButton selectButton = new AccountSelectButton(manageButton);
+        WawelAuthStyle.rowButton(selectButton, () -> isSelected);
+        selectButton.expanded()
+            .height(ACCOUNT_ENTRY_HEIGHT);
+
+        Row dot = new Row() {
+
+            @Override
+            public boolean canHover() {
+                return false;
+            }
+        };
+        dot.size(8, 8)
+            .margin(1, 0)
+            .mainAxisAlignment(Alignment.MainAxis.CENTER)
+            .crossAxisAlignment(Alignment.CrossAxis.CENTER)
+            .background(new Rectangle().color(0xFF2A2A2A))
+            .child(nonHoverable(6, 6).background(new Rectangle().color(statusColor)));
+
+        String fullLabel = profileName;
+        String displayLabel = GuiText.ellipsizeToPixelWidth(fullLabel, ACCOUNT_LABEL_MAX_WIDTH_PX);
+        @SuppressWarnings("unchecked")
+        TextWidget<?> label = new TextWidget(IKey.str(displayLabel)) {
+
+            @Override
+            public boolean canHoverThrough() {
+                return true;
+            }
+        };
+        label.expanded()
+            .heightRel(1.0f)
+            .color(
+                () -> isSelected ? WawelAuthStyle.THEME_LIGHTER
+                    : selectButton.isRowHovering() ? WawelAuthStyle.THEME_LIGHTER : WawelAuthStyle.TEXT_SECONDARY);
+        label.addTooltipLine(GuiText.tr("wawelauth.gui.server_picker.tooltip.account", fullLabel));
+        label.addTooltipLine(GuiText.tr("wawelauth.gui.server_picker.tooltip.provider", providerName));
+
+        Row innerRow = new Row() {
+
+            @Override
+            public boolean canHover() {
+                return false;
+            }
+        };
+        innerRow.widthRel(1.0f)
+            .heightRel(1.0f)
+            .crossAxisAlignment(Alignment.CrossAxis.CENTER)
+            .child(nonHoverable(2, 1));
+        if (account.getProfileUuid() != null) {
+            innerRow.child(
+                createFaceWidget(profileName, account.getProfileUuid(), account.getProviderName())
+                    .alpha(() -> isSelected || selectButton.isRowHovering() ? 1.0 : ACCOUNT_FACE_IDLE_ALPHA));
+            innerRow.child(nonHoverable(2, 1));
+        }
+        innerRow.child(dot)
+            .child(nonHoverable(2, 1))
+            .child(label);
+
+        selectButton.child(innerRow);
+        selectButton.onMousePressed(mouseButton -> {
+            onSelect.accept(account);
+            panel.closeIfOpen();
+            return true;
+        });
+
+        Row entryRow = new Row();
+        entryRow.widthRel(1.0f)
+            .height(ACCOUNT_ENTRY_HEIGHT)
+            .crossAxisAlignment(Alignment.CrossAxis.CENTER)
+            .child(selectButton)
+            .child(new Widget<>().size(1, 1))
+            .child(manageButton);
+
+        return entryRow;
+    }
+
+    private static IDrawable manageProviderIcon(String name, ColorType colorType) {
+        UITexture texture = UITexture.builder()
+            .location("wawelauth", "unauthed")
+            .fullImage()
+            .colorType(colorType)
+            .nonOpaque()
+            .name(name)
+            .build();
+        return (context, x, y, width, height, widgetTheme) -> texture
+            .draw(context, x + 1, y, width, height, widgetTheme);
+    }
+
+    private ButtonWidget<?> buildSingleplayerClearEntry(long selectedAccountId, ModularPanel panel) {
+        boolean isSelected = selectedAccountId < 0L;
+
+        ButtonWidget<?> entry = new ButtonWidget<>();
+        WawelAuthStyle.rowButton(entry, () -> isSelected);
+        entry.widthRel(1.0f)
+            .height(16);
+
+        TextWidget<?> label = new TextWidget<>(GuiText.key("wawelauth.gui.common.no_account_selected"));
+        label.widthRel(1.0f)
+            .heightRel(1.0f)
+            .color(
+                () -> isSelected ? WawelAuthStyle.THEME_LIGHTER
+                    : entry.isHovering() ? WawelAuthStyle.THEME_LIGHTER : WawelAuthStyle.TEXT_SECONDARY)
+            .margin(2, 0, 0, 0);
+
+        Row row = new Row();
+        row.widthRel(1.0f)
+            .heightRel(1.0f)
+            .crossAxisAlignment(Alignment.CrossAxis.CENTER)
+            .child(new Widget<>().size(2, 1))
+            .child(label);
+
+        entry.child(row);
+        entry.onMousePressed(mouseButton -> {
+            SingleplayerAccountPersistence.clearSelection();
+            panel.closeIfOpen();
+            return true;
+        });
+        return entry;
+    }
+
+    private static boolean notBlank(String value) {
+        return value != null && !value.trim()
+            .isEmpty();
+    }
+
+    private static Widget<?> nonHoverable(int width, int height) {
+        NonHoverableWidget w = new NonHoverableWidget();
+        w.size(width, height);
+        return w;
+    }
+
+    private static class NonHoverableWidget extends Widget<NonHoverableWidget> {
+
+        @Override
+        public boolean canHover() {
+            return false;
+        }
+    }
+
+    private static class AccountSelectButton extends ButtonWidget<AccountSelectButton> {
+
+        private final ButtonWidget<?> manageButton;
+
+        private AccountSelectButton(ButtonWidget<?> manageButton) {
+            this.manageButton = manageButton;
+        }
+
+        private boolean isRowHovering() {
+            return super.isHovering() || manageButton.isHovering();
+        }
+
+        @Override
+        public IDrawable getCurrentBackground(WidgetThemeEntry<?> widgetTheme) {
+            return manageButton.isHovering() ? getHoverBackground() : super.getCurrentBackground(widgetTheme);
+        }
+    }
+
+    /**
+     * ModularUI 2.3.x tests an absolute mouse position against local scrollbar bounds before walking scroll-widget
+     * children. That creates a dead vertical strip whose screen position depends on the panel offset. Account rows
+     * already reserve the scrollbar width, so walking them whenever the list itself is hit is safe here.
+     */
+    private static class AccountListWidget extends ListWidget<IWidget, AccountListWidget> {
+
+        @Override
+        public void getWidgetsAt(IViewportStack stack, HoveredWidgetList widgets, int mouseX, int mouseY) {
+            if (widgets.peek() == this) {
+                IViewport.getChildrenAt(this, stack, widgets, mouseX, mouseY);
+            }
+        }
+    }
+
+    private static AccountStatus getLiveStatus(ClientAccount account) {
+        if (account == null) return null;
+        WawelClient client = WawelClient.instance();
+        if (client == null) return account.getStatus();
+        AccountStatus cached = client.getAccountManager()
+            .getAccountStatus(account.getId());
+        if (cached != null) {
+            account.setStatus(cached);
+            return cached;
+        }
+        return account.getStatus();
+    }
+
+    private static String sortKeyForAccount(ClientAccount account) {
+        if (account == null || account.getProfileName() == null) {
+            return "";
+        }
+        return account.getProfileName();
+    }
+
+    private static FaceWidget createFaceWidget(String displayName, java.util.UUID profileUuid, String providerName) {
+        return new FaceWidget(displayName, profileUuid, providerName).size(8, 8);
+    }
+
+}

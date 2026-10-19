@@ -1,0 +1,154 @@
+package industries.angelic.wawelauth.compat.dynmap;
+
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+import java.util.Collection;
+
+import net.minecraft.entity.player.EntityPlayer;
+
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.mojang.authlib.GameProfile;
+import com.mojang.authlib.properties.Property;
+
+import industries.angelic.angellib.util.StringUtil;
+import industries.angelic.wawelauth.wawelcore.data.WawelProfile;
+import industries.angelic.wawelauth.wawelcore.ping.WawelPingPayload;
+import industries.angelic.wawelauth.wawelserver.ApiUrlUtil;
+import industries.angelic.wawelauth.wawelserver.WawelServer;
+
+/**
+ * Resolves an absolute skin URL for Dynmap's face generator.
+ */
+public final class DynmapSkinUrlResolver {
+
+    private DynmapSkinUrlResolver() {}
+
+    public static String resolve(EntityPlayer player, String currentSkinUrl) {
+        String fromProfile = resolveFromProfile(player == null ? null : player.getGameProfile());
+        if (fromProfile != null) {
+            return fromProfile;
+        }
+
+        String apiRoot = ApiUrlUtil.resolveLocalApiRoot();
+        String normalizedCurrent = absolutizeSkinUrl(currentSkinUrl, apiRoot);
+        if (normalizedCurrent != null) {
+            return normalizedCurrent;
+        }
+
+        if (player == null || apiRoot == null) {
+            return currentSkinUrl;
+        }
+
+        WawelServer server = WawelServer.instance();
+        if (server == null || server.getProfileDAO() == null) {
+            return currentSkinUrl;
+        }
+
+        WawelProfile profile = server.getProfileDAO()
+            .findByUuid(player.getUniqueID());
+        if (profile == null) {
+            return currentSkinUrl;
+        }
+
+        String hash = StringUtil.trimToNull(profile.getSkinHash());
+        if (hash == null) {
+            return currentSkinUrl;
+        }
+
+        return apiRoot + "/textures/" + hash;
+    }
+
+    public static String resolveFromProfile(GameProfile profile) {
+        if (profile == null) return null;
+
+        Collection<Property> properties = profile.getProperties()
+            .get("textures");
+        if (properties == null || properties.isEmpty()) {
+            return null;
+        }
+
+        String apiRoot = ApiUrlUtil.resolveLocalApiRoot();
+        for (Property property : properties) {
+            if (property == null) continue;
+            String url = extractSkinUrlFromTexturesProperty(property.getValue());
+            if (url != null) {
+                return absolutizeSkinUrl(url, apiRoot);
+            }
+        }
+
+        return null;
+    }
+
+    public static String extractSkinUrlFromTexturesProperty(String texturesBase64) {
+        String value = StringUtil.trimToNull(texturesBase64);
+        if (value == null) return null;
+
+        try {
+            byte[] jsonBytes = Base64.getDecoder()
+                .decode(value);
+            JsonObject root = new JsonParser().parse(new String(jsonBytes, StandardCharsets.UTF_8))
+                .getAsJsonObject();
+            JsonObject textures = root.getAsJsonObject("textures");
+            if (textures == null) return null;
+            JsonObject skin = textures.getAsJsonObject("SKIN");
+            if (skin == null) return null;
+            return optionalString(skin, "url");
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    public static String absolutizeSkinUrl(String rawSkinUrl, String apiRoot) {
+        String value = StringUtil.trimToNull(rawSkinUrl);
+        if (value == null) return null;
+
+        if (isAbsoluteHttpUrl(value)) {
+            return value;
+        }
+
+        String base = normalizeApiRoot(apiRoot);
+        if (base == null) {
+            return value;
+        }
+
+        if (value.startsWith("/")) {
+            return base + value;
+        }
+        if (value.startsWith("textures/")) {
+            return base + "/" + value;
+        }
+
+        return value;
+    }
+
+    private static String optionalString(JsonObject object, String key) {
+        if (object == null || key == null
+            || !object.has(key)
+            || object.get(key)
+                .isJsonNull()) {
+            return null;
+        }
+        try {
+            return object.get(key)
+                .getAsString();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static boolean isAbsoluteHttpUrl(String value) {
+        return value.startsWith("http://") || value.startsWith("https://");
+    }
+
+    private static String normalizeApiRoot(String apiRoot) {
+        String value = WawelPingPayload.normalizeUrl(apiRoot);
+        if (value == null) {
+            return null;
+        }
+        if (isAbsoluteHttpUrl(value)) {
+            return value;
+        }
+        return "http://" + value;
+    }
+}
