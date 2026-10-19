@@ -42,6 +42,7 @@ public class WawelClient {
     private final SessionBridge sessionBridge;
     private final ConnectionProviderCache connectionProviderCache;
     private final WawelTextureResolver textureResolver;
+    private final NameProfileResolver nameProfileResolver;
     private final File dataDir;
 
     private WawelClient(File dataDir) {
@@ -81,6 +82,7 @@ public class WawelClient {
 
         // Skin resolver
         textureResolver = new WawelTextureResolver(sessionBridge);
+        nameProfileResolver = new NameProfileResolver(this);
 
         int prunedBindings = ServerBindingPersistence.clearMissingAccountBindings(accountManager);
         if (prunedBindings > 0) {
@@ -139,6 +141,7 @@ public class WawelClient {
         } catch (Exception e) {
             WawelAuth.LOG.warn("Error shutting down account manager: {}", e.getMessage());
         }
+        nameProfileResolver.shutdown();
         try {
             textureResolver.shutdown();
         } catch (Exception e) {
@@ -182,6 +185,10 @@ public class WawelClient {
 
     public File getDataDir() {
         return dataDir;
+    }
+
+    public NameProfileResolver getNameProfileResolver() {
+        return nameProfileResolver;
     }
 
     public WawelTextureResolver getTextureResolver() {

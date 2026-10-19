@@ -16,6 +16,7 @@ public class ConnectionProviderCache {
 
     private volatile List<ClientProvider> providers = Collections.emptyList();
     private final ConcurrentHashMap<UUID, ClientProvider> playerProviders = new ConcurrentHashMap<>();
+    private volatile boolean serverNameLookup;
 
     /** Store providers advertised by the server. */
     public void setProviders(List<ClientProvider> providers) {
@@ -82,6 +83,15 @@ public class ConnectionProviderCache {
         return null;
     }
 
+    /** Whether the server answers which of its players a name belongs to. */
+    public boolean hasServerNameLookup() {
+        return serverNameLookup;
+    }
+
+    public void setServerNameLookup(boolean serverNameLookup) {
+        this.serverNameLookup = serverNameLookup;
+    }
+
     /**
      * Whether this cache has providers (i.e. connected to a WA server).
      */
@@ -95,6 +105,7 @@ public class ConnectionProviderCache {
     public void clear() {
         providers = Collections.emptyList();
         playerProviders.clear();
+        serverNameLookup = false;
     }
 
     private static String normalizeUrl(String url) {

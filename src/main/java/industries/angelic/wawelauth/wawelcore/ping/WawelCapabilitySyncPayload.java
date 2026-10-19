@@ -14,11 +14,14 @@ import industries.angelic.wawelauth.wawelcore.config.ServerConfig;
 public final class WawelCapabilitySyncPayload {
 
     public static final String CHANNEL = "WAUTH|CAPS";
+    /** The server answers {@code NameLookupPacket}, which older servers would reject. */
+    public static final String KEY_NAME_LOOKUP = "nameLookup";
 
     private WawelCapabilitySyncPayload() {}
 
     public static byte[] encodeServerPayload(ServerConfig config, String localPublicKeyBase64) {
         JsonObject payload = WawelPingPayload.buildServerPayload(config, localPublicKeyBase64);
+        payload.addProperty(KEY_NAME_LOOKUP, true);
         return payload.toString()
             .getBytes(StandardCharsets.UTF_8);
     }

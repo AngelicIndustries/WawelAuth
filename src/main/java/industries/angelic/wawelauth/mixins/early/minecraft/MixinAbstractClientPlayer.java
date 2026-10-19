@@ -4,8 +4,12 @@ import java.util.UUID;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.AbstractClientPlayer;
+import net.minecraft.client.renderer.ThreadDownloadImageData;
+import net.minecraft.client.renderer.texture.ITextureObject;
+import net.minecraft.client.renderer.texture.TextureManager;
 import net.minecraft.client.resources.SkinManager;
 import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.StringUtils;
 
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -22,6 +26,7 @@ import com.mojang.authlib.GameProfile;
 
 import industries.angelic.wawelauth.api.WawelTextureResolver;
 import industries.angelic.wawelauth.client.render.LocalTextureLoader;
+import industries.angelic.wawelauth.client.render.NameSkinTexture;
 import industries.angelic.wawelauth.client.render.animatedcape.AnimatedCapeTexture;
 import industries.angelic.wawelauth.client.render.animatedcape.AnimatedCapeTracker;
 import industries.angelic.wawelauth.wawelclient.BuiltinProviders;
@@ -40,6 +45,26 @@ public class MixinAbstractClientPlayer {
     @Inject(method = "<clinit>", at = @At("TAIL"))
     private static void wawelauth$useModernSteve(CallbackInfo ci) {
         locationStevePng = new ResourceLocation("wawelauth", "textures/steve_64.png");
+    }
+
+    /**
+     * Skins by player name, as Model Citizens loads them, came from skins.minecraft.net, which is gone. The name is
+     * resolved through Wawel Auth's providers instead. Only the name's own location is taken over: BetterQuesting
+     * passes a player's current skin location here, which may be the one Wawel Auth is about to fill.
+     */
+    @Inject(method = "getDownloadImageSkin", at = @At("HEAD"), cancellable = true)
+    private static void wawelauth$skinByName(ResourceLocation location, String name,
+        CallbackInfoReturnable<ThreadDownloadImageData> cir) {
+        if (WawelClient.instance() == null || name == null) return;
+        if (!AbstractClientPlayer.getLocationSkin(name)
+            .equals(location)) return;
+        TextureManager textures = Minecraft.getMinecraft()
+            .getTextureManager();
+        ITextureObject existing = textures.getTexture(location);
+        if (existing != null) return;
+        NameSkinTexture texture = new NameSkinTexture(StringUtils.stripControlCodes(name), locationStevePng);
+        textures.loadTexture(location, texture);
+        cir.setReturnValue(texture);
     }
 
     @Redirect(

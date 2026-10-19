@@ -79,6 +79,13 @@ public class MixinNetHandlerPlayClientJoinSync {
                 .getTrustedProviders();
             client.getConnectionProviderCache()
                 .setProviders(trusted);
+            client.getConnectionProviderCache()
+                .setServerNameLookup(
+                    payload.has(WawelCapabilitySyncPayload.KEY_NAME_LOOKUP)
+                        && payload.get(WawelCapabilitySyncPayload.KEY_NAME_LOOKUP)
+                            .isJsonPrimitive()
+                        && payload.get(WawelCapabilitySyncPayload.KEY_NAME_LOOKUP)
+                            .getAsBoolean());
 
             // Log each trusted provider with key availability
             for (industries.angelic.wawelauth.wawelclient.data.ClientProvider tp : trusted) {

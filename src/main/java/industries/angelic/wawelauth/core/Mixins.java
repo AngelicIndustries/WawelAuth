@@ -19,6 +19,10 @@ public class Mixins extends AngelMixins {
             .phase(MixinUtil.Phase.EARLY)
             .side(MiscUtil.Side.SERVER)
             .build();
+        registry.mixin("AccessorPlayerProfileCache")
+            .phase(MixinUtil.Phase.EARLY)
+            .side(MiscUtil.Side.BOTH)
+            .build();
 
         // Minecraft Mixins
         registry.mixin("MixinNetHandlerLoginServerAuthThread")

@@ -28,6 +28,9 @@ public final class PacketHandler {
         register(UpdateSkinLayersPacket.Handler.class, UpdateSkinLayersPacket.class, Side.SERVER);
         // Append only: discriminators are part of the protocol with older versions.
         register(SetSkinPartsPacket.Handler.class, SetSkinPartsPacket.class, Side.SERVER);
+        // Only sent to servers that advertise it in WAUTH|CAPS.
+        register(NameLookupPacket.Handler.class, NameLookupPacket.class, Side.SERVER);
+        register(NameLookupReplyPacket.Handler.class, NameLookupReplyPacket.class, Side.CLIENT);
         initialized = true;
     }
 
