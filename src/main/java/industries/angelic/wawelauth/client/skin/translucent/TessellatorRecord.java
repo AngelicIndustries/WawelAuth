@@ -1,30 +1,24 @@
 package industries.angelic.wawelauth.client.skin.translucent;
 
-import java.nio.ByteBuffer;
-import java.nio.FloatBuffer;
-import java.nio.IntBuffer;
-import java.nio.ShortBuffer;
+import java.nio.ByteOrder;
 import java.util.Arrays;
 
-import net.minecraft.client.renderer.GLAllocation;
-import net.minecraft.client.renderer.OpenGlHelper;
-
-import org.lwjgl.opengl.GL11;
+import net.minecraft.client.renderer.Tessellator;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import industries.angelic.wawelauth.mixins.early.minecraft.AccessorTessellator;
 
-/** A Tessellator draw's vertices, copied before they are drawn, to draw them again later the way it does. */
+/**
+ * A Tessellator draw's vertices, copied before they are drawn, to hand to the Tessellator again later vertex by
+ * vertex. That takes the same path as any draw, Angelica's and its shaders' included.
+ */
 @SideOnly(Side.CLIENT)
 final class TessellatorRecord implements TranslucentLayers.Replay {
 
-    /** As the Tessellator lays out a vertex: position, texture, color, normal, light; 32 bytes. */
-    private static final int STRIDE = 32;
-    private static ByteBuffer bytes;
-    private static IntBuffer ints;
-    private static FloatBuffer floats;
-    private static ShortBuffer shorts;
+    /** As the Tessellator lays out a vertex: position, texture, color, normal, light. */
+    private static final int INTS = 8;
+    private static final boolean LITTLE_ENDIAN = ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN;
 
     private final int[] data;
     private final int vertices;
@@ -36,7 +30,7 @@ final class TessellatorRecord implements TranslucentLayers.Replay {
 
     TessellatorRecord(AccessorTessellator tessellator) {
         vertices = tessellator.wawelauth$getVertexCount();
-        data = Arrays.copyOf(tessellator.wawelauth$getRawBuffer(), vertices * STRIDE / 4);
+        data = Arrays.copyOf(tessellator.wawelauth$getRawBuffer(), vertices * INTS);
         mode = tessellator.wawelauth$getDrawMode();
         texture = tessellator.wawelauth$hasTexture();
         brightness = tessellator.wawelauth$hasBrightness();
@@ -47,67 +41,34 @@ final class TessellatorRecord implements TranslucentLayers.Replay {
     @Override
     public void paint(float tint) {
         if (vertices == 0) return;
-        reserve(vertices * STRIDE);
-        ints.clear();
-        ints.put(data);
-        // Vertex colors take the place of the current color, which carries the tint otherwise.
-        if (color && tint != 1.0F) for (int i = 5; i < data.length; i += STRIDE / 4) ints.put(i, tinted(data[i], tint));
-
-        if (texture) {
-            floats.position(3);
-            GL11.glTexCoordPointer(2, STRIDE, floats);
-            GL11.glEnableClientState(GL11.GL_TEXTURE_COORD_ARRAY);
+        Tessellator tessellator = Tessellator.instance;
+        tessellator.startDrawing(mode);
+        for (int i = 0; i < data.length; i += INTS) {
+            if (texture) tessellator.setTextureUV(Float.intBitsToFloat(data[i + 3]), Float.intBitsToFloat(data[i + 4]));
+            if (color) {
+                int[] rgba = rgba(data[i + 5]);
+                // Vertex colors take the place of the current color, which carries the tint otherwise.
+                tessellator.setColorRGBA(rgba[0], (int) (rgba[1] * tint), (int) (rgba[2] * tint), rgba[3]);
+            }
+            if (normals) {
+                int normal = data[i + 6];
+                tessellator
+                    .setNormal((byte) normal / 127.0F, (byte) (normal >> 8) / 127.0F, (byte) (normal >> 16) / 127.0F);
+            }
+            if (brightness) tessellator.setBrightness(data[i + 7]);
+            tessellator.addVertex(
+                Float.intBitsToFloat(data[i]),
+                Float.intBitsToFloat(data[i + 1]),
+                Float.intBitsToFloat(data[i + 2]));
         }
-        if (brightness) {
-            OpenGlHelper.setClientActiveTexture(OpenGlHelper.lightmapTexUnit);
-            shorts.position(14);
-            GL11.glTexCoordPointer(2, STRIDE, shorts);
-            GL11.glEnableClientState(GL11.GL_TEXTURE_COORD_ARRAY);
-            OpenGlHelper.setClientActiveTexture(OpenGlHelper.defaultTexUnit);
-        }
-        if (color) {
-            bytes.position(20);
-            GL11.glColorPointer(4, true, STRIDE, bytes);
-            GL11.glEnableClientState(GL11.GL_COLOR_ARRAY);
-        }
-        if (normals) {
-            bytes.position(24);
-            GL11.glNormalPointer(STRIDE, bytes);
-            GL11.glEnableClientState(GL11.GL_NORMAL_ARRAY);
-        }
-        floats.position(0);
-        GL11.glVertexPointer(3, STRIDE, floats);
-        GL11.glEnableClientState(GL11.GL_VERTEX_ARRAY);
-        GL11.glDrawArrays(mode, 0, vertices);
-        GL11.glDisableClientState(GL11.GL_VERTEX_ARRAY);
-        if (texture) GL11.glDisableClientState(GL11.GL_TEXTURE_COORD_ARRAY);
-        if (brightness) {
-            OpenGlHelper.setClientActiveTexture(OpenGlHelper.lightmapTexUnit);
-            GL11.glDisableClientState(GL11.GL_TEXTURE_COORD_ARRAY);
-            OpenGlHelper.setClientActiveTexture(OpenGlHelper.defaultTexUnit);
-        }
-        if (color) GL11.glDisableClientState(GL11.GL_COLOR_ARRAY);
-        if (normals) GL11.glDisableClientState(GL11.GL_NORMAL_ARRAY);
+        tessellator.draw();
     }
 
-    private static void reserve(int size) {
-        if (bytes != null && bytes.capacity() >= size) {
-            bytes.clear();
-            return;
+    /** A vertex color as the Tessellator packs it, in the platform's byte order: red, green, blue, alpha. */
+    static int[] rgba(int packed) {
+        if (LITTLE_ENDIAN) {
+            return new int[] { packed & 0xFF, packed >>> 8 & 0xFF, packed >>> 16 & 0xFF, packed >>> 24 };
         }
-        bytes = GLAllocation.createDirectByteBuffer(Math.max(64 * 1024, Integer.highestOneBit(size) << 1));
-        ints = bytes.asIntBuffer();
-        floats = bytes.asFloatBuffer();
-        shorts = bytes.asShortBuffer();
-    }
-
-    /**
-     * A vertex color with its green and blue scaled. In either byte order the Tessellator packs them into the middle
-     * two bytes.
-     */
-    static int tinted(int color, float tint) {
-        int low = (int) ((color >>> 8 & 0xFF) * tint);
-        int high = (int) ((color >>> 16 & 0xFF) * tint);
-        return color & 0xFF0000FF | high << 16 | low << 8;
+        return new int[] { packed >>> 24, packed >>> 16 & 0xFF, packed >>> 8 & 0xFF, packed & 0xFF };
     }
 }

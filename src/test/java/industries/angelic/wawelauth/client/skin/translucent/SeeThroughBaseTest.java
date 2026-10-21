@@ -1,5 +1,6 @@
 package industries.angelic.wawelauth.client.skin.translucent;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -8,6 +9,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.awt.image.BufferedImage;
 import java.math.BigInteger;
+import java.nio.ByteOrder;
 
 import org.junit.Test;
 
@@ -70,12 +72,10 @@ public class SeeThroughBaseTest {
     }
 
     @Test
-    public void vertexColorTintScalesGreenAndBlueInEitherByteOrder() {
-        // Little-endian: alpha, blue, green, red from the top byte down.
-        assertEquals(0xFF3C3CFF, TessellatorRecord.tinted(0xFF6464FF, 0.6F));
-        // Big-endian: red, green, blue, alpha.
-        assertEquals(0x10787820, TessellatorRecord.tinted(0x10C8C820, 0.6F));
-        assertEquals(0x80000020, TessellatorRecord.tinted(0x80FFFF20, 0.0F));
+    public void vertexColorsUnpackInThePlatformByteOrder() {
+        boolean little = ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN;
+        int packed = little ? 0xFF3C2814 : 0x14283CFF;
+        assertArrayEquals(new int[] { 0x14, 0x28, 0x3C, 0xFF }, TessellatorRecord.rgba(packed));
     }
 
     private static BufferedImage opaqueSkin() {

@@ -62,7 +62,6 @@ dependencies {
     // Disabled: client.core.MixinMinecraft @Redirect on displayWorkingScreen clashes with Et Futurum's MixinMinecraft_LoadingBridge
     //runtimeOnlyNonPublishable("curse.maven:archaicfix-677782:6785842")
     runtimeOnlyNonPublishable(rfg.deobf("curse.maven:catalogue-vintage-1465746:8384975")) // 1.0.8-1.7.10
-    runtimeOnlyNonPublishable("com.github.GTNewHorizons:Angelica:2.2.9:dev")
     //runtimeOnlyNonPublishable("org.fentanylsolutions.vintagedamageindicators:VintageDamageIndicators:test2")
     //runtimeOnlyNonPublishable(rfg.deobf("curse.maven:skinport-234948:3212017"))
     runtimeOnlyNonPublishable("industries.angelic.vintageresourcify:VintageResourcify:1.0.6:dev")
@@ -76,6 +75,7 @@ dependencies {
     devOnlyNonPublishable("com.github.GTNewHorizons:ServerUtilities:2.4.8:dev")
     devOnlyNonPublishable("com.github.GTNewHorizons:BetterQuesting:3.8.83-GTNH:dev")
     devOnlyNonPublishable("ganymedes01.etfuturum:Et-Futurum-Requiem:2.6.57-GTNH:dev")
+    devOnlyNonPublishable("com.github.GTNewHorizons:Angelica:2.2.35:dev")
 
     // Pure compile
     compileOnly("org.jetbrains:annotations:26.1.0")

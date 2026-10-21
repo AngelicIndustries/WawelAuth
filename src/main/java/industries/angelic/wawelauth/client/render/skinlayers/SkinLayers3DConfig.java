@@ -71,7 +71,7 @@ public class SkinLayers3DConfig {
     @Config.DefaultBoolean(true)
     public static boolean enableSkulls = true;
 
-    @Config.Comment("Draw semi-transparent skin layer pixels see-through, in order with water, ice and stained glass. Experimental, and off with Angelica.")
+    @Config.Comment("Draw semi-transparent skin layer pixels see-through, in order with water, ice and stained glass, also under Angelica's shaders. Experimental.")
     @Config.DefaultBoolean(true)
     public static boolean translucentLayers = true;
 

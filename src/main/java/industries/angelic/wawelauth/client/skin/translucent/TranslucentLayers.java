@@ -18,7 +18,6 @@ import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
 
 import cpw.mods.fml.common.FMLCommonHandler;
-import cpw.mods.fml.common.Loader;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.gameevent.TickEvent;
 import cpw.mods.fml.common.network.FMLNetworkEvent;
@@ -30,6 +29,7 @@ import industries.angelic.wawelauth.api.skin.LayerSegment;
 import industries.angelic.wawelauth.api.skin.PlayerSkin;
 import industries.angelic.wawelauth.api.skin.PlayerSkins;
 import industries.angelic.wawelauth.client.render.skinlayers.SkinLayers3DConfig;
+import industries.angelic.wawelauth.compat.angelica.AngelicaShaders;
 import industries.angelic.wawelauth.mixins.early.minecraft.AccessorTessellator;
 
 /**
@@ -45,14 +45,14 @@ import industries.angelic.wawelauth.mixins.early.minecraft.AccessorTessellator;
  * ({@link SeeThroughBase}).
  * <p>
  * Improved transparency in common scenes, not correct transparency: glass on both sides of a player cannot be ordered.
- * Fixed-function only, so off with Angelica. All of it is here and behind {@link #opened}, {@link #paint},
- * {@link #splitsBase} and {@link #flush}, switched by {@link SkinLayers3DConfig#translucentLayers} and
+ * Under Angelica's shaders the held texels are drawn as translucent entities ({@link AngelicaShaders}), and nothing is
+ * split for the shadow map. All of it is here and behind {@link #opened}, {@link #paint}, {@link #splitsBase} and
+ * {@link #flush}, switched by {@link SkinLayers3DConfig#translucentLayers} and
  * {@link SkinLayers3DConfig#translucentBase}.
  */
 @SideOnly(Side.CLIENT)
 public final class TranslucentLayers {
 
-    private static final boolean ANGELICA = Loader.isModLoaded("angelica");
     /** Vanilla's hurt and death flash, as a tint: it would otherwise miss texels that write no depth. */
     private static final float HURT_TINT = 0.6F;
     private static final FloatBuffer MATRIX = BufferUtils.createFloatBuffer(16);
@@ -81,7 +81,7 @@ public final class TranslucentLayers {
     }
 
     private static boolean active() {
-        return SkinLayers3DConfig.translucentLayers && !ANGELICA;
+        return SkinLayers3DConfig.translucentLayers;
     }
 
     /**
@@ -90,6 +90,8 @@ public final class TranslucentLayers {
      */
     public static Open opened(Entity entity, DrawKind kind) {
         if (!active() || !(entity instanceof AbstractClientPlayer player)) return null;
+        // The shadow map is drawn from the sun: its transforms would land in the world.
+        if (AngelicaShaders.shadowPass()) return null;
         PlayerSkin skin = PlayerSkins.get(player);
         int base = SkinLayers3DConfig.translucentBase ? SeeThroughBase.texture(skin) : SeeThroughBase.NONE;
         int skinTexture = base == SeeThroughBase.NONE ? 0 : glTexture(skin);
@@ -103,7 +105,7 @@ public final class TranslucentLayers {
         if (current == open) current = open.outer;
         if (open.records.isEmpty()) return;
         if (open.deferred()) QUEUE.add(open);
-        else paint(Collections.singletonList(open));
+        else paint(Collections.singletonList(open), null);
     }
 
     /** Paints a player's layer segment: its semi-transparent texels split off if it has any. */
@@ -142,7 +144,8 @@ public final class TranslucentLayers {
     }
 
     /**
-     * A base Tessellator draw, after {@link #splitsBase}: its opaque texels drawn through {@code draw}, the rest held.
+     * A base Tessellator draw, after {@link #splitsBase}: its vertices copied, its opaque texels drawn through
+     * {@code draw}, the rest held, to be handed to the Tessellator again.
      */
     public static int splitBase(AccessorTessellator tessellator, IntSupplier draw) {
         TessellatorRecord record = new TessellatorRecord(tessellator);
@@ -182,10 +185,12 @@ public final class TranslucentLayers {
         QUEUE.sort(FARTHEST_FIRST);
         // The entity passes turn the lightmap off as they end.
         Minecraft.getMinecraft().entityRenderer.enableLightmap(partialTicks);
+        AngelicaShaders.Scope shaders = AngelicaShaders.beginEntities();
         try {
-            paint(QUEUE);
+            paint(QUEUE, shaders);
         } finally {
             QUEUE.clear();
+            AngelicaShaders.endEntities(shaders);
             Minecraft.getMinecraft().entityRenderer.disableLightmap(partialTicks);
         }
     }
@@ -193,9 +198,10 @@ public final class TranslucentLayers {
     /**
      * Each player's held texels, blended over what is drawn without writing depth, opaque ones left out, each under
      * the transform, texture, color and light it was held with. Far sides first, outermost first; then near sides,
-     * innermost first, so a layer's far side lands behind the base and its near side in front.
+     * innermost first, so a layer's far side lands behind the base and its near side in front. Each player is tagged
+     * for the shader pack while {@code shaders} is open.
      */
-    private static void paint(List<Open> opens) {
+    private static void paint(List<Open> opens, AngelicaShaders.Scope shaders) {
         float lightX = OpenGlHelper.lastBrightnessX, lightY = OpenGlHelper.lastBrightnessY;
         GL11.glMatrixMode(GL11.GL_MODELVIEW);
         GL11.glPushMatrix();
@@ -217,6 +223,10 @@ public final class TranslucentLayers {
             OpenGlHelper.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ZERO);
             GL11.glEnable(GL11.GL_CULL_FACE);
             for (Open open : opens) {
+                AngelicaShaders.entity(shaders, open.player);
+                // Nothing belongs in front of the first-person hand, but shader packs draw water after it: it writes
+                // depth, as its opaque texels do.
+                GL11.glDepthMask(open.kind == DrawKind.FIRST_PERSON);
                 float tint = open.hurt ? HURT_TINT : 1.0F;
                 List<Held> records = open.records;
                 for (int i = records.size() - 1; i >= 0; i--) records.get(i)
