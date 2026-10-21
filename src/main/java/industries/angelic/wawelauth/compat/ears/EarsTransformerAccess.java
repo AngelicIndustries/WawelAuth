@@ -20,9 +20,9 @@ import net.minecraft.launchwrapper.LaunchClassLoader;
 import industries.angelic.wawelauth.WawelAuth;
 
 /**
- * Ears keeps its whole package away from class transformers, so no mixin reaches its render delegate. Before Ears loads
- * its renderer, the broad exclusion is replaced by narrower ones that cover everything else in its jar: only the
- * delegate becomes transformable, and Ears' loader and transformers stay as protected as before.
+ * Ears keeps its whole package away from class transformers, so no mixin reaches its render delegate or its profile
+ * lookup. Before Ears loads either, the broad exclusion is replaced by narrower ones that cover everything else in its
+ * jar: only those two classes become transformable, and Ears' loader and transformers stay as protected as before.
  * <p>
  * Plateau's Ears is left alone: NilLoader remaps it as the JVM defines it, after any mixin would have run.
  */
@@ -32,12 +32,16 @@ public final class EarsTransformerAccess {
     private static final Build STANDALONE = new Build(
         "com.unascribed.ears",
         "com.unascribed.ears.LayerEars$1",
-        "standalone Ears");
+        "standalone Ears",
+        "com.unascribed.ears.LayerEars",
+        "com.unascribed.ears.legacy.LegacyHelper");
     /** FoamFix's bundled Ears: FoamFix excludes all of {@code pl.asie.foamfix}. */
     private static final Build FOAMFIX = new Build(
         "pl.asie.foamfix",
         "pl.asie.foamfix.repack.com.unascribed.ears.LayerEars$1",
-        "FoamFix's bundled Ears");
+        "FoamFix's bundled Ears",
+        "pl.asie.foamfix.repack.com.unascribed.ears.LayerEars",
+        "pl.asie.foamfix.repack.com.unascribed.ears.legacy.LegacyHelper");
 
     private static boolean opened;
 
@@ -48,7 +52,7 @@ public final class EarsTransformerAccess {
         return opened;
     }
 
-    /** Opens whichever Ears build is installed. Call from the late mixin loader, before Ears loads its renderer. */
+    /** Opens whichever Ears build is installed. Call from the late mixin loader, before Ears loads those classes. */
     public static synchronized void open() {
         LaunchClassLoader loader = Launch.classLoader;
         if (loader == null) return;
@@ -65,11 +69,14 @@ public final class EarsTransformerAccess {
     private static boolean open(LaunchClassLoader loader, Build build)
         throws ReflectiveOperationException, IOException {
         Set<String> exclusions = exclusions(loader);
-        if (cached(loader).containsKey(build.delegate)) {
+        Map<String, Class<?>> cached = cached(loader);
+        if (cached.containsKey(build.delegate)) {
             WawelAuth.LOG
                 .warn("{} loaded its renderer before Wawel Auth could open it; Ears stays on its own", build.name);
             return false;
         }
+        for (String open : build.open) if (cached.containsKey(open))
+            WawelAuth.LOG.warn("{} loaded {} before Wawel Auth could open it", build.name, open);
         if (!exclusions.contains(build.excluded)) {
             // Nothing keeps it from transformers.
             return true;
@@ -91,11 +98,11 @@ public final class EarsTransformerAccess {
                 if (className.startsWith(build.excluded + ".")) classes.add(className);
             }
         }
-        Set<String> narrowed = narrowed(build.excluded, classes, outer(build.delegate));
+        Set<String> narrowed = narrowed(build.excluded, classes, build.open);
         exclusions.remove(build.excluded);
         exclusions.addAll(narrowed);
         WawelAuth.LOG.info(
-            "Opened {}'s skin renderer to Wawel Auth: {} narrower transformer exclusions replace {}",
+            "Opened {}'s skin renderer and profile lookup to Wawel Auth: {} narrower exclusions replace {}",
             build.name,
             narrowed.size(),
             build.excluded);
@@ -103,36 +110,45 @@ public final class EarsTransformerAccess {
     }
 
     /**
-     * Prefixes covering every class under {@code excluded} except {@code open} and its inner classes: whole packages
-     * where they hold none of them, single classes in the package that does.
+     * Prefixes covering every class under {@code excluded} except the {@code open} ones and their inner classes: whole
+     * packages where they hold none of them, single classes in the packages that do and the packages above those.
      */
-    static Set<String> narrowed(String excluded, List<String> classes, String open) {
-        String openPackage = open.substring(0, open.lastIndexOf('.'));
+    static Set<String> narrowed(String excluded, List<String> classes, List<String> open) {
         Set<String> prefixes = new LinkedHashSet<>();
         for (String name : classes) {
-            if (name.equals(open) || name.startsWith(open + "$")) continue;
+            if (opened(name, open)) continue;
             String pkg = name.substring(0, name.lastIndexOf('.'));
-            if (pkg.equals(openPackage) || openPackage.startsWith(pkg + ".")) {
-                // In the delegate's own package, or a parent of it: only the class itself, unless its name would also
-                // cover the delegate.
-                if (!open.startsWith(name)) prefixes.add(name);
+            if (onPath(pkg, open)) {
+                // Only the class itself, unless its name would also cover an open one.
+                boolean covers = false;
+                for (String kept : open) covers |= kept.startsWith(name);
+                if (!covers) prefixes.add(name);
                 continue;
             }
-            // The highest package below the excluded root on the way to this class that doesn't hold the delegate.
-            String rest = name.substring(excluded.length() + 1);
+            // The highest package below the excluded root on the way to this class that holds no open class.
             String prefix = excluded;
-            for (String segment : rest.split("\\.")) {
+            for (String segment : name.substring(excluded.length() + 1)
+                .split("\\.")) {
                 prefix = prefix + "." + segment;
-                if (!openPackage.equals(prefix) && !openPackage.startsWith(prefix + ".")) break;
+                if (!onPath(prefix, open)) break;
             }
-            prefixes.add(prefix.equals(name) ? name : prefix + ".");
+            prefixes.add(prefix + ".");
         }
         return prefixes;
     }
 
-    private static String outer(String className) {
-        int inner = className.indexOf('$');
-        return inner < 0 ? className : className.substring(0, inner);
+    private static boolean opened(String name, List<String> open) {
+        for (String kept : open) if (name.equals(kept) || name.startsWith(kept + "$")) return true;
+        return false;
+    }
+
+    /** Whether the package holds an open class, directly or further down. */
+    private static boolean onPath(String pkg, List<String> open) {
+        for (String kept : open) {
+            String keptPackage = kept.substring(0, kept.lastIndexOf('.'));
+            if (keptPackage.equals(pkg) || keptPackage.startsWith(pkg + ".")) return true;
+        }
+        return false;
     }
 
     @SuppressWarnings("unchecked")
@@ -162,11 +178,14 @@ public final class EarsTransformerAccess {
         final String excluded;
         final String delegate;
         final String name;
+        /** The classes to open, with their inner classes. */
+        final List<String> open;
 
-        Build(String excluded, String delegate, String name) {
+        Build(String excluded, String delegate, String name, String... open) {
             this.excluded = excluded;
             this.delegate = delegate;
             this.name = name;
+            this.open = java.util.Arrays.asList(open);
         }
     }
 }
