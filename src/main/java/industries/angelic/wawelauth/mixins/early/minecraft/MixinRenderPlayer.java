@@ -7,6 +7,7 @@ import net.minecraft.entity.player.EntityPlayer;
 
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
@@ -22,8 +23,12 @@ import industries.angelic.wawelauth.client.render.SkinModelHelper;
 import industries.angelic.wawelauth.client.skin.model.ModelPlayer;
 import industries.angelic.wawelauth.compat.ears.EarsCompat;
 import industries.angelic.wawelauth.compat.smartmoving.SmartRenderModels;
+import industries.angelic.wawelauth.compat.wallgrab.WallGrabCompat;
 
-/** Installs {@link ModelPlayer} in the vanilla player renderer and keeps it on each drawn player's skin model. */
+/**
+ * Installs {@link ModelPlayer} in the vanilla player renderer and keeps it on each drawn player's skin model, and in
+ * the renderer when Wall Grab swaps in its own biped.
+ */
 @Mixin(RenderPlayer.class)
 public class MixinRenderPlayer {
 
@@ -42,9 +47,26 @@ public class MixinRenderPlayer {
         return new ModelPlayer(scale);
     }
 
+    /** The model the constructor installed, put back when Wall Grab swaps in its own. */
+    @Unique
+    private ModelPlayer wawelauth$model;
+
+    @Inject(method = "<init>", at = @At("RETURN"))
+    private void wawelauth$rememberModel(CallbackInfo ci) {
+        if (this.modelBipedMain instanceof ModelPlayer model) this.wawelauth$model = model;
+    }
+
+    @Unique
+    private void wawelauth$keepModel() {
+        if (this.wawelauth$model == null || !WallGrabCompat.replaced(this.modelBipedMain)) return;
+        this.modelBipedMain = this.wawelauth$model;
+        ((AccessorRendererLivingEntity) this).wawelauth$setMainModel(this.wawelauth$model);
+    }
+
     @Inject(method = "doRender(Lnet/minecraft/client/entity/AbstractClientPlayer;DDDFF)V", at = @At("HEAD"))
     private void wawelauth$applySkinModel(AbstractClientPlayer player, double x, double y, double z, float yaw,
         float partialTicks, CallbackInfo ci) {
+        this.wawelauth$keepModel();
         if (this.modelBipedMain instanceof ModelPlayer model) {
             model.setSkinModel(SkinModelHelper.getSkinModel(player));
         } else {
@@ -57,6 +79,7 @@ public class MixinRenderPlayer {
      */
     @WrapMethod(method = "renderFirstPersonArm")
     private void wawelauth$firstPersonSleeve(EntityPlayer player, Operation<Void> original) {
+        this.wawelauth$keepModel();
         if (!(this.modelBipedMain instanceof ModelPlayer model) || !(player instanceof AbstractClientPlayer client)) {
             SmartRenderModels.prepare(this.modelBipedMain, player);
             original.call(player);

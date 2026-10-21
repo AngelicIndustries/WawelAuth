@@ -15,6 +15,7 @@ import industries.angelic.wawelauth.api.skin.LayerSegment;
 import industries.angelic.wawelauth.api.skin.SkinLayers;
 import industries.angelic.wawelauth.api.skin.SkinPart;
 import industries.angelic.wawelauth.client.fakeworld.PreviewEntityRenderContext;
+import industries.angelic.wawelauth.compat.wallgrab.WallGrabCompat;
 import industries.angelic.wawelauth.wawelcore.data.SkinModel;
 
 /**
@@ -112,6 +113,14 @@ public class ModelPlayer extends ModelBiped {
             super.render(entity, limbSwing, limbSwingAmount, ageInTicks, netHeadYaw, headPitch, scale);
             if (!draw.suppressed()) drawLayers(draw, scale, true);
         }
+    }
+
+    /** The vanilla pose, then any other mod's pose on top that would have needed its own biped (Wall Grab). */
+    @Override
+    public void setRotationAngles(float limbSwing, float limbSwingAmount, float ageInTicks, float netHeadYaw,
+        float headPitch, float scale, Entity entity) {
+        super.setRotationAngles(limbSwing, limbSwingAmount, ageInTicks, netHeadYaw, headPitch, scale, entity);
+        WallGrabCompat.pose(this, entity);
     }
 
     /** The right sleeve of the first-person arm, after the vanilla arm was drawn. */
