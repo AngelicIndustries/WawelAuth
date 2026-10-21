@@ -20,6 +20,7 @@ import industries.angelic.wawelauth.api.skin.PlayerSkin;
 import industries.angelic.wawelauth.api.skin.PlayerSkins;
 import industries.angelic.wawelauth.api.skin.SkinPart;
 import industries.angelic.wawelauth.api.skin.ViewerSkinSettings;
+import industries.angelic.wawelauth.compat.ears.EarsAnchors;
 import industries.angelic.wawelauth.compat.smartmoving.SmartMovingCompat;
 
 /** Implementation behind {@link industries.angelic.wawelauth.api.skin.SkinLayers}. Client thread only. */
@@ -48,6 +49,7 @@ public final class LayerDraws {
         if (outer != null && outer.suppressed && outer.entity == entity) {
             draw.suppressed = true;
         }
+        if (outer == null || outer.entity != entity) EarsAnchors.opened(entity);
         if (!STACK.push(draw) && !leakLogged) {
             leakLogged = true;
             WawelAuth.LOG.error("Skin layer draws were opened without being closed; dropped them");
@@ -57,6 +59,12 @@ public final class LayerDraws {
 
     public static LayerDraw current() {
         return STACK.peek();
+    }
+
+    /** Whether the innermost open draw is a first-person arm's, which submits its sleeve after the arm. */
+    public static boolean firstPersonOpen() {
+        Draw draw = STACK.peek();
+        return draw != null && draw.kind == DrawKind.FIRST_PERSON && !draw.suppressed;
     }
 
     private static boolean voxelsAllowed(Entity entity, DrawKind kind) {
@@ -107,6 +115,8 @@ public final class LayerDraws {
         @Override
         public void submit(LayerSegment segment) {
             if (closed) throw new IllegalStateException("Layer draw is already closed");
+            // Ears anchors to where each part goes, drawn or not.
+            EarsAnchors.submitted(entity, segment);
             if (suppressed) return;
 
             SkinPart part = segment.part();

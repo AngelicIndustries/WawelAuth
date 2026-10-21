@@ -311,6 +311,13 @@ public class Mixins extends AngelMixins {
             .side(MiscUtil.Side.CLIENT)
             .build();
 
+        registry.mixin("MixinLayerEarsDelegate")
+            .modid("ears")
+            .extraModid("foamfix")
+            .phase(MixinUtil.Phase.LATE)
+            .side(MiscUtil.Side.CLIENT)
+            .build();
+
         registry.mixin("MixinFoamFixEarsLegacyHelper")
             .modid("foamfix")
             .phase(MixinUtil.Phase.LATE)

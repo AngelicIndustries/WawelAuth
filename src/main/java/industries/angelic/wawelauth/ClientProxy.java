@@ -19,6 +19,7 @@ import industries.angelic.wawelauth.client.render.animatedcape.AnimatedCapeClien
 import industries.angelic.wawelauth.client.skin.SkinSnapshots;
 import industries.angelic.wawelauth.client.skin.layers.LayerDraws;
 import industries.angelic.wawelauth.client.skin.sync.ClientSkinSync;
+import industries.angelic.wawelauth.compat.ears.EarsAnchors;
 import industries.angelic.wawelauth.wawelclient.WawelClient;
 import industries.angelic.wawelauth.wawelclient.WawelPingClientHooks;
 import industries.angelic.wawelauth.wawelcore.config.LocalConfig;
@@ -54,6 +55,7 @@ public class ClientProxy extends CommonProxy {
         ClientSkinSync.register();
         SkinSnapshots.register();
         LayerDraws.register();
+        EarsAnchors.register();
         WawelAuthTooltipStyle.register();
 
         // Window drag-and-drop detection (lwjgl3ify check is inside AngelLib)

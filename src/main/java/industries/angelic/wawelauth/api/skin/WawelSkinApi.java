@@ -1,5 +1,7 @@
 package industries.angelic.wawelauth.api.skin;
 
+import industries.angelic.wawelauth.compat.ears.EarsTransformerAccess;
+
 /**
  * Version of the skin API ({@code api.skin} and {@code api.account}). It changes whenever an existing signature or
  * contract changes; additions keep it.
@@ -18,5 +20,13 @@ public final class WawelSkinApi {
     /** The version of the installed Wawel Auth. */
     public static int version() {
         return VERSION;
+    }
+
+    /**
+     * Whether Ears, when installed, puts its features on the bones skin layers are submitted on and leaves the second
+     * layer to them. A renderer that submits all six overlay parts on its own bones can then keep its model with Ears.
+     */
+    public static boolean earsFollowLayers() {
+        return EarsTransformerAccess.opened();
     }
 }
