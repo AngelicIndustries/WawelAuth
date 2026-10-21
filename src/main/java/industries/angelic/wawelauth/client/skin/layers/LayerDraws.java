@@ -20,6 +20,8 @@ import industries.angelic.wawelauth.api.skin.PlayerSkin;
 import industries.angelic.wawelauth.api.skin.PlayerSkins;
 import industries.angelic.wawelauth.api.skin.SkinPart;
 import industries.angelic.wawelauth.api.skin.ViewerSkinSettings;
+import industries.angelic.wawelauth.client.skin.translucent.LayerPainter;
+import industries.angelic.wawelauth.client.skin.translucent.TranslucentLayers;
 import industries.angelic.wawelauth.compat.ears.EarsAnchors;
 import industries.angelic.wawelauth.compat.smartmoving.SmartMovingCompat;
 
@@ -49,7 +51,10 @@ public final class LayerDraws {
         if (outer != null && outer.suppressed && outer.entity == entity) {
             draw.suppressed = true;
         }
-        if (outer == null || outer.entity != entity) EarsAnchors.opened(entity);
+        if (outer == null || outer.entity != entity) {
+            EarsAnchors.opened(entity);
+            draw.seeThrough = TranslucentLayers.opened(entity, kind);
+        }
         if (!STACK.push(draw) && !leakLogged) {
             leakLogged = true;
             WawelAuth.LOG.error("Skin layer draws were opened without being closed; dropped them");
@@ -94,13 +99,15 @@ public final class LayerDraws {
             .func_152344_a(VoxelLayers::clear);
     }
 
-    private static final class Draw implements LayerDraw {
+    private static final class Draw implements LayerDraw, LayerPainter {
 
         private final Entity entity;
         private final DrawKind kind;
         private final float scale;
         private final boolean voxels;
         private PlayerSkin skin;
+        /** Set on the entity's outermost draw. */
+        private TranslucentLayers.Open seeThrough;
         private boolean suppressed;
         private final EnumSet<SkinPart> claimed = EnumSet.noneOf(SkinPart.class);
         private boolean closed;
@@ -128,7 +135,13 @@ public final class LayerDraws {
             }
 
             // voxels is only ever true for client players.
-            if (voxels && !covered && ViewerSkinSettings.volumetric(part)) {
+            boolean volumetric = voxels && !covered && ViewerSkinSettings.volumetric(part);
+            TranslucentLayers.paint(entity, segment, volumetric, this);
+        }
+
+        @Override
+        public void paint(LayerSegment segment, boolean volumetric) {
+            if (volumetric) {
                 if (skin == null) skin = PlayerSkins.get((AbstractClientPlayer) entity);
                 if (VoxelLayers.draw(skin, segment, scale) != VoxelLayers.Result.UNAVAILABLE) return;
             }
@@ -163,6 +176,7 @@ public final class LayerDraws {
                 orderLogged = true;
                 WawelAuth.LOG.error("Skin layer draws were closed out of order");
             }
+            if (seeThrough != null) TranslucentLayers.closed(seeThrough);
         }
     }
 }

@@ -71,6 +71,14 @@ public class SkinLayers3DConfig {
     @Config.DefaultBoolean(true)
     public static boolean enableSkulls = true;
 
+    @Config.Comment("Draw semi-transparent skin layer pixels see-through, in order with water, ice and stained glass. Experimental, and off with Angelica.")
+    @Config.DefaultBoolean(true)
+    public static boolean translucentLayers = true;
+
+    @Config.Comment("With translucentLayers, also draw semi-transparent base skin pixels see-through, on Wawel Auth's, Even More Bends' and Salamander's player models. Experimental.")
+    @Config.DefaultBoolean(true)
+    public static boolean translucentBase = true;
+
     @Config.Comment("Render front faces as vanilla boxes, voxels for sides only (faster).")
     @Config.DefaultBoolean(true)
     public static boolean fastRender = true;
