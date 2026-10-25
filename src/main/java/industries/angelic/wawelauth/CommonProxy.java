@@ -185,7 +185,7 @@ public class CommonProxy {
     }
 
     private boolean allowMissingPublicBaseUrlInCi() {
-        return isTruthyEnv("WAWELAUTH_CI") || isTruthyEnv("GITHUB_ACTIONS");
+        return isTruthyEnv("WAWELAUTH_CI") || isTruthyEnv("GITHUB_ACTIONS") || isTruthyEnv("CI");
     }
 
     private boolean isTruthyEnv(String name) {
