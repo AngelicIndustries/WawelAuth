@@ -6,11 +6,14 @@ Authentication mod for *Minecraft* 1.7.10.
 
 **Server**: Allow players from *Microsoft*, *Ely.by*, *LittleSkin*, and more, including the option to host your own integrated auth server.
 
-**Client**: Login into and manage accounts for various auth providers and servers. Every player's skin and cape comes from their own provider, HD skins and animated capes included. A skin renderer draws them in the modern format: [Salamander](https://github.com/AngelicIndustries/Salamander) adds slim arms, 3D skin layers and see-through skin pixels, and SimpleSkinBackport or Ears work too. Without one, skins show the way vanilla draws them.
+**Client**: Login into and manage accounts for various auth providers and servers. Every player's skin and cape is loaded from their own provider, HD skins included.
 
 This mod also adds some other features, like an admin web panel, and animated capes (only for *Wawel Auth* accounts). For a complete list of features, and usage instructions, consult [the wiki](https://github.com/AngelicIndustries/WawelAuth/wiki).
 
 *Wawel Auth* can be installed on the server, client, or both, but the last combination is recommended for an optimal experience. By default, the client saves configuration to a shared folder, no need to login again to all your accounts when switching *Minecraft* instances. This can be disabled.
+
+> [!NOTE]
+> *Wawel Auth* no longer handles modern skin rendering, such as slim arms, outer skin layers on the body and limbs, or 3D skin layers. For a better experience, use it alongside [SimpleSkinBackport](https://github.com/GTNewHorizons/SimpleSkinBackport), [Ears](https://modrinth.com/mod/ears), or [Salamander](https://github.com/AngelicIndustries/Salamander).
 
 ![screen1](images/screenshots/screen1.png)
 
@@ -30,12 +33,11 @@ This mod also adds some other features, like an admin web panel, and animated ca
 * [ModularUI2](https://github.com/GTNewHorizons/ModularUI2) [![curse](images/icons/curse.png)](https://www.curseforge.com/minecraft/mc-mods/modularui)  [![modrinth](images/icons/modrinth.png)](https://modrinth.com/mod/modularui) [![git](images/icons/git.png)](https://github.com/GTNewHorizons/ModularUI2) (Client only)
 
 > [!NOTE]
-> The regular and Maven `dev` jars bundle `sqlite-jdbc` and `org.bouncycastle` so they work in offline and downstream development environments. Lightweight `slim` and `slim-dev` jars using embedded DepLoader are also provided.
-> Slim jars download SQLite's Java classes and only the native bundle for the current platform (Windows, macOS, Linux, Android, or FreeBSD). Existing bundled libraries are reused.
-> Builds also produce `wawelauth-<version>-android.jar`: a slim variant with Android SQLite natives already embedded and the remaining libraries downloaded at startup. The regular slim jar also supports Android. The Android variant retains launcher session import and is not published to CurseForge.
-
-> [!NOTE]
-> `wawelauth-curseforge` releases do not have the ability to import launcher sessions.
+> Jar variants:
+> * Regular and `dev`: bundle `sqlite-jdbc` and Bouncy Castle, so they work offline and in downstream development environments.
+> * `slim` and `slim-dev`: download those at startup, with only your platform's SQLite natives (Android included); libraries already present are reused.
+> * `android`: a slim jar with Android's SQLite natives built in. Not published to CurseForge.
+> * `curseforge`: cannot import launcher sessions (CurseForge disallows this functionality).
 
 ## Building
 
