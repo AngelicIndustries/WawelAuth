@@ -9,9 +9,12 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Overwrite;
 import org.spongepowered.asm.mixin.Shadow;
 
+import industries.angelic.wawelauth.client.render.ModernRenderers;
+
 /**
  * Replace ImageBufferDownload.parseUserSkin with a pure-raster implementation
- * that outputs 64x64 for all standard skins.
+ * that outputs 64x64 for all standard skins, or vanilla's 64x32 when no modern
+ * skin renderer is loaded ({@link ModernRenderers}).
  * <p>
  * On some macOS/JDK setups, BufferedImage.getGraphics() can hang during join-time
  * skin processing. Vanilla parseUserSkin uses Graphics.drawImage.
@@ -55,13 +58,13 @@ public abstract class MixinImageBufferDownload {
         // HD skin (wider than 64px): pass through for HD skin mods.
         if (srcW > 64) {
             if (image.getType() == BufferedImage.TYPE_INT_ARGB) {
-                return image;
+                return ModernRenderers.uploaded(image);
             }
             BufferedImage converted = new BufferedImage(srcW, srcH, BufferedImage.TYPE_INT_ARGB);
             int[] pixels = new int[srcW * srcH];
             image.getRGB(0, 0, srcW, srcH, pixels, 0, srcW);
             converted.setRGB(0, 0, srcW, srcH, pixels, 0, srcW);
-            return converted;
+            return ModernRenderers.uploaded(converted);
         }
 
         // Standard skin: output as 64x64.
@@ -97,7 +100,8 @@ public abstract class MixinImageBufferDownload {
         this.setAreaOpaque(0, 16, 64, 32); // Body + arms + legs row
         this.setAreaOpaque(16, 48, 48, 64); // Left arm + left leg bases
 
-        return out;
+        // Without a modern renderer, vanilla's 64x32 model reads the top half.
+        return ModernRenderers.uploaded(out);
     }
 
     /**

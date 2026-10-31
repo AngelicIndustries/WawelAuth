@@ -22,7 +22,6 @@ import cpw.mods.fml.client.config.GuiConfig;
 import cpw.mods.fml.client.config.IConfigElement;
 import industries.angelic.wawelauth.Config;
 import industries.angelic.wawelauth.WawelAuth;
-import industries.angelic.wawelauth.client.render.skinlayers.SkinLayers3DConfig;
 import industries.angelic.wawelauth.client.render.skinlayers.SkinLayersConfig;
 import industries.angelic.wawelauth.wawelcore.config.ClientConfig;
 import industries.angelic.wawelauth.wawelcore.config.JsonConfigIO;
@@ -142,10 +141,9 @@ public class GuiFactory implements IModGuiFactory {
             List<IConfigElement> rootElements = new ArrayList<>();
             rootElements.add(new ConfigElement(uiConfig.getCategory(CAT_LOCAL)));
 
-            // Add GTNHLib-managed config elements for ClientConfig and SkinLayers3DConfig
+            // Add GTNHLib-managed config elements for ClientConfig and the wearer's skin parts
             try {
                 rootElements.addAll(ConfigurationManager.getConfigElements(ClientConfig.class, true));
-                rootElements.addAll(ConfigurationManager.getConfigElements(SkinLayers3DConfig.class, true));
                 rootElements.addAll(ConfigurationManager.getConfigElements(SkinLayersConfig.class, true));
             } catch (ConfigException e) {
                 WawelAuth.LOG.error("Failed to build GTNHLib config GUI elements", e);

@@ -11,6 +11,7 @@ import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import industries.angelic.wawelauth.api.SkinImageUtil;
 import industries.angelic.wawelauth.client.render.LocalTextureLoader;
+import industries.angelic.wawelauth.client.render.ModernRenderers;
 import industries.angelic.wawelauth.client.render.animatedcape.AnimatedCapeTexture;
 import industries.angelic.wawelauth.wawelcore.data.TextureType;
 
@@ -50,7 +51,7 @@ final class TextureUploadPreview implements AutoCloseable {
 
         BufferedImage image = LocalTextureLoader.readImage(file);
         if (textureType == TextureType.SKIN) {
-            image = SkinImageUtil.convertLegacySkin(image);
+            image = ModernRenderers.uploaded(SkinImageUtil.convertLegacySkin(image));
         }
         ResourceLocation location = new ResourceLocation("wawelauth", path);
         LocalTextureLoader.registerBufferedImage(location, image);

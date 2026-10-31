@@ -65,6 +65,15 @@ public final class SkinSnapshots {
             revision -> new SkinSnapshot(profileId, revision, texture, model, original, normalized));
     }
 
+    /** The image a loaded skin texture was uploaded with; null when it has none. */
+    public static BufferedImage image(ResourceLocation texture) {
+        if (texture == null) return null;
+        ITextureObject textureObject = Minecraft.getMinecraft()
+            .getTextureManager()
+            .getTexture(texture);
+        return textureObject == null ? null : normalizedImage(texture, textureObject);
+    }
+
     private static BufferedImage normalizedImage(ResourceLocation texture, ITextureObject textureObject) {
         if (textureObject instanceof ProviderThreadDownloadImageData provider) {
             return provider.bufferedImage;

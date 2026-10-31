@@ -4,7 +4,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.EntityOtherPlayerMP;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.EntityJoinWorldEvent;
@@ -16,13 +15,12 @@ import cpw.mods.fml.common.gameevent.TickEvent;
 import cpw.mods.fml.common.network.FMLNetworkEvent;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
-import industries.angelic.wawelauth.client.render.skinlayers.SkinLayers3DSetup;
 import industries.angelic.wawelauth.wawelclient.WawelClient;
 
 /**
  * Drives WawelTextureResolver lifecycle: tick sweep, invalidate on join, clear on disconnect.
  * <p>
- * Disables skin overlay rendering when armor is equipped.
+ * Clears cached skins as players join and leave.
  */
 @SideOnly(Side.CLIENT)
 public final class SkinResolverClientHandler {
@@ -70,8 +68,6 @@ public final class SkinResolverClientHandler {
 
         client.getTextureResolver()
             .invalidate(playerID);
-        Minecraft.getMinecraft()
-            .func_152344_a(() -> { SkinLayers3DSetup.updateSkullCache(playerID, null); });
     }
 
     @SubscribeEvent
@@ -92,8 +88,6 @@ public final class SkinResolverClientHandler {
         client.getConnectionProviderCache()
             .clear();
         LocalTextureLoader.clearImageCache();
-        Minecraft.getMinecraft()
-            .func_152344_a(() -> { SkinLayers3DSetup.clearSkullCache(); });
     }
 
 }

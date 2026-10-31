@@ -76,22 +76,6 @@ public class Mixins extends AngelMixins {
             .phase(MixinUtil.Phase.EARLY)
             .side(MiscUtil.Side.CLIENT)
             .build();
-        registry.mixin("MixinEntityRendererTranslucentLayers")
-            .phase(MixinUtil.Phase.EARLY)
-            .side(MiscUtil.Side.CLIENT)
-            .build();
-        registry.mixin("AccessorTessellator")
-            .phase(MixinUtil.Phase.EARLY)
-            .side(MiscUtil.Side.CLIENT)
-            .build();
-        registry.mixin("MixinTessellatorTranslucentBase")
-            .phase(MixinUtil.Phase.EARLY)
-            .side(MiscUtil.Side.CLIENT)
-            .build();
-        registry.mixin("MixinModelRendererTranslucentBase")
-            .phase(MixinUtil.Phase.EARLY)
-            .side(MiscUtil.Side.CLIENT)
-            .build();
         registry.mixin("AccessorGuiMainMenu")
             .phase(MixinUtil.Phase.EARLY)
             .side(MiscUtil.Side.CLIENT)
@@ -162,15 +146,7 @@ public class Mixins extends AngelMixins {
             .build();
 
         // Client Mixins: modern skin rendering
-        registry.mixin("MixinRenderPlayer")
-            .phase(MixinUtil.Phase.EARLY)
-            .side(MiscUtil.Side.CLIENT)
-            .build();
         registry.mixin("compat.ears.MixinRenderPlayerEars")
-            .phase(MixinUtil.Phase.EARLY)
-            .side(MiscUtil.Side.CLIENT)
-            .build();
-        registry.mixin("AccessorRendererLivingEntity")
             .phase(MixinUtil.Phase.EARLY)
             .side(MiscUtil.Side.CLIENT)
             .build();
@@ -178,16 +154,8 @@ public class Mixins extends AngelMixins {
             .phase(MixinUtil.Phase.EARLY)
             .side(MiscUtil.Side.CLIENT)
             .build();
-        registry.mixin("compat.MixinRenderingRegistry")
-            .phase(MixinUtil.Phase.EARLY)
-            .side(MiscUtil.Side.CLIENT)
-            .build();
 
         // Client Mixins: 3D skin layers
-        registry.mixin("MixinTileEntitySkullRenderer")
-            .phase(MixinUtil.Phase.EARLY)
-            .side(MiscUtil.Side.CLIENT)
-            .build();
         registry.mixin("compat.ears.MixinLocalTextureLoaderEars")
             .phase(MixinUtil.Phase.EARLY)
             .side(MiscUtil.Side.CLIENT)
@@ -304,32 +272,14 @@ public class Mixins extends AngelMixins {
             .side(MiscUtil.Side.CLIENT)
             .build();
 
-        registry.mixin("MixinTileEntityFancySkullRenderer")
-            .modid("etfuturum")
-            .phase(MixinUtil.Phase.LATE)
-            .side(MiscUtil.Side.CLIENT)
-            .build();
         registry.mixin("MixinLayerBetterElytra")
             .modid("etfuturum")
             .phase(MixinUtil.Phase.LATE)
             .side(MiscUtil.Side.CLIENT)
             .build();
 
-        registry.mixin("MixinAetherItemRenderer")
-            .modid("aether_legacy")
-            .phase(MixinUtil.Phase.LATE)
-            .side(MiscUtil.Side.CLIENT)
-            .build();
-
         registry.mixin("MixinEarsLegacyHelper")
             .modid("ears")
-            .phase(MixinUtil.Phase.LATE)
-            .side(MiscUtil.Side.CLIENT)
-            .build();
-
-        registry.mixin("MixinLayerEarsDelegate")
-            .modid("ears")
-            .extraModid("foamfix")
             .phase(MixinUtil.Phase.LATE)
             .side(MiscUtil.Side.CLIENT)
             .build();
@@ -367,31 +317,8 @@ public class Mixins extends AngelMixins {
             .side(MiscUtil.Side.SERVER)
             .build();
 
-        registry.mixin("MixinClientProxy")
-            .modid("Botania")
-            .phase(MixinUtil.Phase.LATE)
-            .side(MiscUtil.Side.CLIENT)
-            .build();
-
-        registry.mixin("MixinRenderCorpse")
-            .modid("modelcitizens")
-            .phase(MixinUtil.Phase.LATE)
-            .side(MiscUtil.Side.CLIENT)
-            .build();
-
         registry.mixin("MixinEventHandlerWA")
             .modid("armoredarms")
-            .phase(MixinUtil.Phase.LATE)
-            .side(MiscUtil.Side.CLIENT)
-            .build();
-        registry.mixin("MixinArmModelRendererPlayer")
-            .modid("armoredarms")
-            .phase(MixinUtil.Phase.LATE)
-            .side(MiscUtil.Side.CLIENT)
-            .build();
-
-        registry.mixin("MixinSmartRenderModelPlayer")
-            .modid("SmartRender")
             .phase(MixinUtil.Phase.LATE)
             .side(MiscUtil.Side.CLIENT)
             .build();

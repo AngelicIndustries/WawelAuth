@@ -7,7 +7,6 @@ import net.minecraft.client.Minecraft;
 import cpw.mods.fml.common.network.simpleimpl.IMessage;
 import cpw.mods.fml.common.network.simpleimpl.IMessageHandler;
 import cpw.mods.fml.common.network.simpleimpl.MessageContext;
-import industries.angelic.wawelauth.client.render.skinlayers.SkinLayers3DSetup;
 import industries.angelic.wawelauth.wawelclient.WawelClient;
 import io.netty.buffer.ByteBuf;
 
@@ -56,7 +55,6 @@ public final class SkinInvalidatePacket implements IMessage {
                         client.getTextureResolver()
                             .invalidate(profileId);
                     }
-                    SkinLayers3DSetup.updateSkullCache(profileId, null);
                 });
             return null;
         }

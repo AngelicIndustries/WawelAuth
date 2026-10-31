@@ -28,6 +28,7 @@ import cpw.mods.fml.relauncher.SideOnly;
 import industries.angelic.wawelauth.WawelAuth;
 import industries.angelic.wawelauth.client.render.IProviderAwareSkinManager;
 import industries.angelic.wawelauth.client.render.LocalTextureLoader;
+import industries.angelic.wawelauth.client.render.ModernRenderers;
 import industries.angelic.wawelauth.client.render.SkinTextureState;
 import industries.angelic.wawelauth.wawelclient.BuiltinProviders;
 import industries.angelic.wawelauth.wawelclient.SessionBridge;
@@ -443,8 +444,9 @@ public class WawelTextureResolver {
         final BufferedImage texImage;
         try {
             if (entry.kind.isSkin()) {
-                texImage = SkinImageUtil
-                    .convertLegacySkin(LocalTextureLoader.readImage(new File(offlineLocalSkin.getSkinPath())));
+                texImage = ModernRenderers.uploaded(
+                    SkinImageUtil
+                        .convertLegacySkin(LocalTextureLoader.readImage(new File(offlineLocalSkin.getSkinPath()))));
             } else {
                 texImage = LocalTextureLoader.readImage(new File(offlineLocalSkin.getCapePath()));
             }

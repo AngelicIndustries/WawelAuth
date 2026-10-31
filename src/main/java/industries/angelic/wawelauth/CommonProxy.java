@@ -15,7 +15,6 @@ import cpw.mods.fml.common.event.FMLServerAboutToStartEvent;
 import cpw.mods.fml.common.event.FMLServerStartingEvent;
 import cpw.mods.fml.common.event.FMLServerStoppingEvent;
 import industries.angelic.angellib.services.http.HttpPortUnification;
-import industries.angelic.wawelauth.client.render.skinlayers.SkinLayers3DConfig;
 import industries.angelic.wawelauth.client.render.skinlayers.SkinLayersConfig;
 import industries.angelic.wawelauth.common.ServerTaskScheduler;
 import industries.angelic.wawelauth.packet.PacketHandler;
@@ -35,7 +34,6 @@ public class CommonProxy {
 
         try {
             ConfigurationManager.registerConfig(ClientConfig.class);
-            ConfigurationManager.registerConfig(SkinLayers3DConfig.class);
             ConfigurationManager.registerConfig(SkinLayersConfig.class);
         } catch (ConfigException e) {
             throw new RuntimeException(e);
