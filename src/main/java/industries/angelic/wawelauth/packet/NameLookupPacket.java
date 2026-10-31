@@ -1,12 +1,10 @@
 package industries.angelic.wawelauth.packet;
 
-import java.util.LinkedList;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.server.MinecraftServer;
 
 import com.mojang.authlib.GameProfile;
 
@@ -15,13 +13,14 @@ import cpw.mods.fml.common.network.simpleimpl.IMessage;
 import cpw.mods.fml.common.network.simpleimpl.IMessageHandler;
 import cpw.mods.fml.common.network.simpleimpl.MessageContext;
 import industries.angelic.wawelauth.common.ServerTaskScheduler;
-import industries.angelic.wawelauth.mixins.early.minecraft.AccessorPlayerProfileCache;
 import industries.angelic.wawelauth.wawelserver.LocalSessionVerifier;
+import industries.angelic.wawelauth.wawelserver.ServerNameLookup;
 import io.netty.buffer.ByteBuf;
 
 /**
  * Client -> Server. Which of this server's players goes by a name, for skins shown by name only. The server answers
- * from its online players and user cache, never the network. Only sent after the server advertised it.
+ * from its online players and user cache, never the network, and looks a {@code name@provider} up at that provider (see
+ * {@link ServerNameLookup}). Only sent after the server advertised it.
  */
 public class NameLookupPacket implements IMessage {
 
@@ -58,9 +57,18 @@ public class NameLookupPacket implements IMessage {
             if (player == null || name == null || name.isEmpty() || name.length() > MAX_NAME_LENGTH) return null;
             if (!allowed(player.getUniqueID())) return null;
 
+            if (ServerNameLookup.isQualified(name)) {
+                ServerNameLookup.qualified(name, profile -> {
+                    if (player.playerNetServerHandler == null) return;
+                    String sessionUrl = profile == null ? null : ServerNameLookup.sessionUrl(name);
+                    PacketHandler.sendToPlayer(new NameLookupReplyPacket(name, profile, sessionUrl), player);
+                });
+                return null;
+            }
+
             ServerTaskScheduler.schedule(() -> {
                 if (player.playerNetServerHandler == null) return;
-                GameProfile profile = find(name);
+                GameProfile profile = ServerNameLookup.known(name);
                 String sessionUrl = profile == null ? null
                     : LocalSessionVerifier.getPlayerProviderSessionUrl(profile.getId());
                 PacketHandler.sendToPlayer(new NameLookupReplyPacket(name, profile, sessionUrl), player);
@@ -79,30 +87,6 @@ public class NameLookupPacket implements IMessage {
                 }
                 return ++window[1] <= LIMIT;
             }
-        }
-
-        private static GameProfile find(String name) {
-            MinecraftServer server = MinecraftServer.getServer();
-            if (server == null) return null;
-
-            EntityPlayerMP online = server.getConfigurationManager()
-                .func_152612_a(name); // getPlayerForUsername
-            if (online != null && online.getGameProfile() != null
-                && online.getGameProfile()
-                    .getId() != null) {
-                return online.getGameProfile();
-            }
-
-            LinkedList<GameProfile> cached = ((AccessorPlayerProfileCache) server.func_152358_ax())
-                .wawelauth$getProfiles();
-            synchronized (cached) {
-                for (GameProfile profile : cached) {
-                    if (profile != null && profile.getId() != null && name.equalsIgnoreCase(profile.getName())) {
-                        return profile;
-                    }
-                }
-            }
-            return null;
         }
     }
 }

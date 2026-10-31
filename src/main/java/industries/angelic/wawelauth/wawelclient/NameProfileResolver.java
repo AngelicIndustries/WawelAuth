@@ -33,9 +33,9 @@ import industries.angelic.wawelauth.wawelcore.util.ProfileNameLookup;
 /**
  * Finds the profile and providers behind a bare player name, for code that only has a name, such as vanilla's
  * name-based skin path. A player in the world answers at once. Otherwise a Wawel Auth server is asked which of its
- * players goes by the name, since the same name can belong to different people at different providers. Names it does
- * not know are looked up in the background with the connection's trusted providers, or Mojang in singleplayer. Answers
- * are kept for a while.
+ * players goes by the name, since the same name can belong to different people at different providers; it also looks
+ * up a {@code name@provider} at that provider. Names it does not know are looked up in the background with the
+ * connection's trusted providers, or Mojang in singleplayer. Answers are kept for a while.
  */
 public final class NameProfileResolver {
 
@@ -139,6 +139,8 @@ public final class NameProfileResolver {
             }
             // Not one of the server's players: ask the providers
         }
+        // Only the server knows which provider a name@provider means
+        if (name.indexOf('@') >= 0) return null;
 
         List<ClientProvider> providers = lookupProviders();
         if (providers.isEmpty()) return null;

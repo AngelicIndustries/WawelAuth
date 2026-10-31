@@ -57,6 +57,10 @@ public class Mixins extends AngelMixins {
             .phase(MixinUtil.Phase.EARLY)
             .side(MiscUtil.Side.SERVER)
             .build();
+        registry.mixin("MixinTileEntitySkull")
+            .phase(MixinUtil.Phase.EARLY)
+            .side(MiscUtil.Side.SERVER)
+            .build();
 
         registry.mixin("MixinEntityPlayer")
             .phase(MixinUtil.Phase.EARLY)

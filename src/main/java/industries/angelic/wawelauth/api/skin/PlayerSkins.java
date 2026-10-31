@@ -38,13 +38,21 @@ public final class PlayerSkins {
     }
 
     /**
-     * The skin for a player head of this profile, from any trusted provider, or from Mojang in singleplayer. Null for
-     * a profile without one, or with a default skin: the head then keeps what vanilla resolved.
+     * The skin for a player head of this profile, from any trusted provider, or from Mojang in singleplayer. A profile
+     * with only a name is found like any other bare name, and a {@code name@provider} through the server. Null while
+     * that is looked up, for a profile without a skin, or with a default skin: the head then keeps what vanilla
+     * resolved. Never blocks.
      */
     public static ResourceLocation skull(GameProfile profile) {
-        if (profile == null || profile.getId() == null) return null;
+        if (profile == null) return null;
         WawelClient client = WawelClient.instance();
         if (client == null) return null;
+        if (profile.getId() == null) {
+            // Only the owner's name: found like any other bare name, or a name@provider through the server
+            return profile.getName() == null ? null
+                : client.getNameProfileResolver()
+                    .skin(profile.getName());
+        }
         ResourceLocation skin = null;
         List<ClientProvider> trusted = client.getSessionBridge()
             .getTrustedProviders();

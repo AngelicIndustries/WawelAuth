@@ -35,6 +35,7 @@ import industries.angelic.wawelauth.client.render.IProviderAwareSkinManager;
 import industries.angelic.wawelauth.client.render.ProviderThreadDownloadImageData;
 import industries.angelic.wawelauth.client.render.SkinManagerCompatImageBuffer;
 import industries.angelic.wawelauth.client.render.SkinTextureState;
+import industries.angelic.wawelauth.wawelclient.NameProfileResolver;
 import industries.angelic.wawelauth.wawelclient.WawelClient;
 import industries.angelic.wawelauth.wawelclient.data.ClientProvider;
 
@@ -69,15 +70,25 @@ public abstract class MixinSkinManager implements IProviderAwareSkinManager {
     private void wawelauth$getProviderProfileTextures(GameProfile profile,
         CallbackInfoReturnable<Map<Type, MinecraftProfileTexture>> cir) {
         WawelClient client = WawelClient.instance();
-        if (client == null || profile == null || profile.getId() == null) {
+        if (client == null || profile == null) {
             return;
         }
+        List<ClientProvider> providers;
+        if (profile.getId() == null) {
+            // A player head that only has its owner's name: find the owner like any other bare name
+            NameProfileResolver.Match match = profile.getName() == null ? null
+                : client.getNameProfileResolver()
+                    .resolve(profile.getName());
+            if (match == null) {
+                return;
+            }
+            profile = match.profile;
+            providers = match.providers;
+        } else {
+            providers = client.resolvePlayerProviderCandidates(profile.getId());
+        }
         ProfileTextureResult result = client.getTextureResolver()
-            .getProfileTextures(
-                profile,
-                field_152797_e,
-                false,
-                client.resolvePlayerProviderCandidates(profile.getId()));
+            .getProfileTextures(profile, field_152797_e, false, providers);
         if (result.isHandled()) {
             cir.setReturnValue(result.getTextures());
         }

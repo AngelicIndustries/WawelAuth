@@ -90,6 +90,14 @@ public final class FallbackWhitelistLookup {
         return fallback == null ? null : StringUtil.trimToNull(fallback.getName());
     }
 
+    /** The session server of the fallback provider a qualified name names; null for local profiles or none. */
+    public static String resolveQualifiedSessionUrl(String rawInput) {
+        QualifiedName qualified = parseQualifiedName(rawInput);
+        if (qualified == null || isLocalProviderAlias(qualified.providerName)) return null;
+        FallbackServer fallback = findFallbackByName(qualified.providerName);
+        return fallback == null ? null : StringUtil.trimToNull(fallback.getSessionServerUrl());
+    }
+
     public static String getQualifiedUsername(String rawInput) {
         QualifiedName qualified = parseQualifiedName(rawInput);
         return qualified == null ? null : qualified.username;
