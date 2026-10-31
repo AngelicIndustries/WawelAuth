@@ -6,7 +6,7 @@ Authentication mod for *Minecraft* 1.7.10.
 
 **Server**: Allow players from *Microsoft*, *Ely.by*, *LittleSkin*, and more, including the option to host your own integrated auth server.
 
-**Client**: Login into and manage accounts for various auth providers and servers. Also includes cosmetic features like modern skin support, or 3D skin layers.
+**Client**: Login into and manage accounts for various auth providers and servers. Every player's skin and cape comes from their own provider, HD skins and animated capes included. A skin renderer draws them in the modern format: [Salamander](https://github.com/AngelicIndustries/Salamander) adds slim arms, 3D skin layers and see-through skin pixels, and SimpleSkinBackport or Ears work too. Without one, skins show the way vanilla draws them.
 
 This mod also adds some other features, like an admin web panel, and animated capes (only for *Wawel Auth* accounts). For a complete list of features, and usage instructions, consult [the wiki](https://github.com/AngelicIndustries/WawelAuth/wiki).
 
@@ -45,7 +45,6 @@ This mod also adds some other features, like an admin web panel, and animated ca
 
 ## Credits
 
-* Skin layer implementation inspired by the [last MIT commit](https://github.com/tr7zw/3d-Skin-Layers/commit/1830e6ed7b86550afc2ed2695391a09ca70285e2) of [3D Skin Layers Mod](https://github.com/tr7zw/3d-Skin-Layers)
 * [Catalogue-Vintage](https://github.com/RuiXuqi/Catalogue-Vintage) for folder icon and system-open inspiration
 * [GT:NH buildscript](https://github.com/GTNewHorizons/ExampleMod1.7.10)
 * [Background image](https://www.pinterest.com/pin/367536019569661725/)
