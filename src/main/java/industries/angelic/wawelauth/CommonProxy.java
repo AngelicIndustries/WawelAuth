@@ -7,7 +7,6 @@ import net.minecraft.server.MinecraftServer;
 import com.gtnewhorizon.gtnhlib.config.ConfigException;
 import com.gtnewhorizon.gtnhlib.config.ConfigurationManager;
 
-import cpw.mods.fml.common.FMLCommonHandler;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
@@ -24,6 +23,7 @@ import industries.angelic.wawelauth.wawelcore.skin.SkinPartsServerHandler;
 import industries.angelic.wawelauth.wawelnet.HttpRequestHandler;
 import industries.angelic.wawelauth.wawelnet.HttpsContextProvider;
 import industries.angelic.wawelauth.wawelserver.CommandWawelAuth;
+import industries.angelic.wawelauth.wawelserver.ServerStartup;
 import industries.angelic.wawelauth.wawelserver.WawelPingServerHooks;
 import industries.angelic.wawelauth.wawelserver.WawelServer;
 
@@ -56,7 +56,13 @@ public class CommonProxy {
         }
 
         ServerConfig config = Config.server();
-        if (config == null || !config.isWawelAuthEnabled()) {
+        if (ServerStartup.refused() || config == null) {
+            return;
+        }
+        if (!config.isWawelAuthEnabled()) {
+            WawelAuth.LOG.info(
+                "Wawel Auth's server module is off, so players log in as on a vanilla server. To host accounts, set wawelAuthEnabled and publicBaseUrl in {}",
+                Config.serverConfigFile());
             return;
         }
 
@@ -134,8 +140,7 @@ public class CommonProxy {
         WawelAuth.LOG.error("  \"publicBaseUrl\": \"auth.example.com:25565\"");
         WawelAuth.LOG.error("  \"apiRoot\": \"auth\"");
         WawelAuth.LOG.error("============================================================");
-        FMLCommonHandler.instance()
-            .exitJava(1, false);
+        ServerStartup.refuse();
     }
 
     private void failMissingPublicBaseUrlStartup(ServerConfig config) {
@@ -161,8 +166,7 @@ public class CommonProxy {
         WawelAuth.LOG.error("This would publish the API at:");
         WawelAuth.LOG.error("  http://auth.example.com:25565/auth");
         WawelAuth.LOG.error("============================================================");
-        FMLCommonHandler.instance()
-            .exitJava(1, false);
+        ServerStartup.refuse();
     }
 
     private void logMissingPublicBaseUrlCiBypass(ServerConfig config) {
@@ -209,7 +213,6 @@ public class CommonProxy {
         WawelAuth.LOG.error("  3. Restart the server");
         WawelAuth.LOG.error("Wawel Auth depends on Mojang/Session verification being enabled.");
         WawelAuth.LOG.error("============================================================");
-        FMLCommonHandler.instance()
-            .exitJava(1, false);
+        ServerStartup.refuse();
     }
 }

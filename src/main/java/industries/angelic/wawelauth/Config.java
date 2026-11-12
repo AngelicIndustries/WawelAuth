@@ -11,11 +11,13 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 import cpw.mods.fml.common.FMLCommonHandler;
+import cpw.mods.fml.relauncher.FMLLaunchHandler;
 import industries.angelic.wawelauth.wawelclient.OsConfigDir;
 import industries.angelic.wawelauth.wawelcore.config.FallbackServersConfig;
 import industries.angelic.wawelauth.wawelcore.config.JsonConfigIO;
 import industries.angelic.wawelauth.wawelcore.config.LocalConfig;
 import industries.angelic.wawelauth.wawelcore.config.ServerConfig;
+import industries.angelic.wawelauth.wawelserver.ServerStartup;
 
 /**
  * Top-level config loader.
@@ -55,7 +57,15 @@ public class Config {
         migrateLegacyCfgFile(mcConfigDir);
         File localConfigFile = new File(localConfigDir, LOCAL_CONFIG_FILE);
         boolean localConfigExisted = localConfigFile.exists();
-        localConfig = JsonConfigIO.load(localConfigFile, LocalConfig.class);
+        try {
+            localConfig = JsonConfigIO.load(localConfigFile, LocalConfig.class);
+        } catch (RuntimeException e) {
+            WawelAuth.LOG.warn(
+                "Wawel Auth's {} can't be read, so its defaults stand in until it is fixed: {}",
+                LOCAL_CONFIG_FILE,
+                e.getMessage() != null ? e.getMessage() : e.toString());
+            localConfig = new LocalConfig();
+        }
         if (!localConfigExisted) {
             importLegacyBootstrapSettings(localConfig);
             JsonConfigIO.save(localConfigFile, localConfig);
@@ -63,18 +73,48 @@ public class Config {
 
         dataConfigDir = ensureDirectory(resolveDataConfigDir(localConfig.isUseOsConfigDir()));
 
-        serverConfig = JsonConfigIO.load(new File(dataConfigDir, SERVER_CONFIG_FILE), ServerConfig.class);
+        try {
+            serverConfig = JsonConfigIO.load(new File(dataConfigDir, SERVER_CONFIG_FILE), ServerConfig.class);
 
-        // Load fallback servers from separate file. Seed from bundled default if missing.
-        File fallbackFile = new File(dataConfigDir, FALLBACK_SERVERS_CONFIG_FILE);
-        if (!fallbackFile.exists()) {
-            seedFallbackServersConfig(fallbackFile);
+            // Load fallback servers from separate file. Seed from bundled default if missing.
+            File fallbackFile = new File(dataConfigDir, FALLBACK_SERVERS_CONFIG_FILE);
+            if (!fallbackFile.exists()) {
+                seedFallbackServersConfig(fallbackFile);
+            }
+            fallbackServersConfig = JsonConfigIO.load(fallbackFile, FallbackServersConfig.class);
+            serverConfig.setFallbackServers(fallbackServersConfig.getEnabledFallbackServers());
+
+            serverConfig.validateOrThrow();
+            serverConfig.ensureApiRootInSkinDomains();
+        } catch (RuntimeException e) {
+            serverConfigUnusable(e);
+            serverConfig = new ServerConfig();
+            fallbackServersConfig = new FallbackServersConfig();
+            serverConfig.setFallbackServers(fallbackServersConfig.getEnabledFallbackServers());
         }
-        fallbackServersConfig = JsonConfigIO.load(fallbackFile, FallbackServersConfig.class);
-        serverConfig.setFallbackServers(fallbackServersConfig.getEnabledFallbackServers());
+    }
 
-        serverConfig.validateOrThrow();
-        serverConfig.ensureApiRootInSkinDomains();
+    /**
+     * server.json or fallback-servers.json can't be read or doesn't check out. A dedicated server refuses to start
+     * until it is fixed; elsewhere the server module doesn't run, so its defaults stand in, and the files stay as they
+     * are.
+     */
+    private static void serverConfigUnusable(RuntimeException e) {
+        String reason = e.getMessage() != null ? e.getMessage() : e.toString();
+        if (!FMLLaunchHandler.side()
+            .isServer()) {
+            WawelAuth.LOG.warn("Wawel Auth's server config can't be used; only dedicated servers need it: {}", reason);
+            return;
+        }
+        WawelAuth.LOG.error("============================================================");
+        WawelAuth.LOG.error("Wawel Auth server module cannot start with its config.");
+        WawelAuth.LOG.error("  {}", reason);
+        WawelAuth.LOG.error("Required fix:");
+        WawelAuth.LOG
+            .error("  Correct {} or {} in {},", SERVER_CONFIG_FILE, FALLBACK_SERVERS_CONFIG_FILE, dataConfigDir);
+        WawelAuth.LOG.error("  or delete the broken file to regenerate its defaults.");
+        WawelAuth.LOG.error("============================================================");
+        ServerStartup.refuse();
     }
 
     public static void reload() {
@@ -217,6 +257,11 @@ public class Config {
 
     public static File getDataConfigDir() {
         return dataConfigDir;
+    }
+
+    /** server.json, which holds the server module's settings. */
+    public static File serverConfigFile() {
+        return new File(dataConfigDir, SERVER_CONFIG_FILE);
     }
 
     public static File getMinecraftConfigRoot() {

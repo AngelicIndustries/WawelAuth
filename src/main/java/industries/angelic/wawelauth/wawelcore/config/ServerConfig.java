@@ -27,7 +27,8 @@ public class ServerConfig {
     public static final int MIN_TLS_HANDSHAKE_TIMEOUT_SECONDS = 1;
     public static final int MAX_TLS_HANDSHAKE_TIMEOUT_SECONDS = 300;
 
-    private boolean wawelAuthEnabled = true;
+    /** Off until the operator turns it on, so a new server starts as a vanilla one instead of asking for setup. */
+    private boolean wawelAuthEnabled = false;
     private boolean enableLocalAuth = true;
     private String serverName = "A Wawel Auth Server";
 
