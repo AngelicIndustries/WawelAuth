@@ -7,6 +7,7 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 
 import industries.angelic.wawelauth.wawelclient.data.AccountStatus;
 import industries.angelic.wawelauth.wawelclient.data.ClientAccount;
@@ -18,6 +19,7 @@ import industries.angelic.wawelauth.wawelcore.storage.sqlite.SqliteDatabase;
 public class SqliteClientAccountDAO implements ClientAccountDAO {
 
     private final SqliteDatabase db;
+    private final AtomicLong writes = new AtomicLong();
 
     public SqliteClientAccountDAO(SqliteDatabase db) {
         this.db = db;
@@ -140,7 +142,7 @@ public class SqliteClientAccountDAO implements ClientAccountDAO {
 
     @Override
     public long create(ClientAccount a) {
-        return db.query(conn -> {
+        long id = db.query(conn -> {
             try (PreparedStatement ps = conn.prepareStatement(
                 "INSERT INTO accounts (provider_name, user_uuid, profile_uuid, profile_name, "
                     + "access_token, refresh_token, client_token, user_properties, "
@@ -183,6 +185,8 @@ public class SqliteClientAccountDAO implements ClientAccountDAO {
                 }
             }
         });
+        writes.incrementAndGet();
+        return id;
     }
 
     @Override
@@ -226,6 +230,7 @@ public class SqliteClientAccountDAO implements ClientAccountDAO {
                 if (rows == 0) throw new RuntimeException("Account not found: " + a.getId());
             }
         });
+        writes.incrementAndGet();
     }
 
     @Override
@@ -236,6 +241,7 @@ public class SqliteClientAccountDAO implements ClientAccountDAO {
                 ps.executeUpdate();
             }
         });
+        writes.incrementAndGet();
     }
 
     @Override
@@ -246,6 +252,12 @@ public class SqliteClientAccountDAO implements ClientAccountDAO {
                 ps.executeUpdate();
             }
         });
+        writes.incrementAndGet();
+    }
+
+    @Override
+    public long writes() {
+        return writes.get();
     }
 
     @Override

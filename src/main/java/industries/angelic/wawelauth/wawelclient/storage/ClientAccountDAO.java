@@ -70,4 +70,12 @@ public interface ClientAccountDAO {
      * Return total account count.
      */
     long count();
+
+    /**
+     * Counts the writes made through this DAO, so that readers can tell when what they cached may be out of date;
+     * -1 when it doesn't count them.
+     */
+    default long writes() {
+        return -1;
+    }
 }

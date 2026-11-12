@@ -11,6 +11,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -67,6 +68,15 @@ public class SessionBridge {
     private volatile List<ClientProvider> trustedProviders = Collections.emptyList();
     private volatile List<PublicKey> trustedKeys = Collections.emptyList();
     private final ConcurrentHashMap<String, GameProfile> profileCache = new ConcurrentHashMap<>();
+    /**
+     * Offline accounts' local skins by profile, as last read from the account database. Drawing asks for them every
+     * frame; they are read again after any account write here, and every few seconds, since another game sharing the
+     * database may change them.
+     */
+    private final ConcurrentHashMap<UUID, Optional<OfflineLocalSkin>> offlineSkins = new ConcurrentHashMap<>();
+    private volatile long offlineSkinsWrites = Long.MIN_VALUE;
+    private volatile long offlineSkinsReadAt;
+    private static final long OFFLINE_SKINS_TTL_NANOS = 5_000_000_000L;
     private final ConcurrentHashMap<String, Boolean> profileFetchInFlight = new ConcurrentHashMap<>();
     private final ThreadLocal<ClientProvider> activeProviderContext = new ThreadLocal<>();
 
@@ -468,23 +478,33 @@ public class SessionBridge {
         if (!isOfflineProvider(provider)) {
             return null;
         }
-        return toOfflineLocalSkin(
-            accountDAO.findByProviderAndProfile(BuiltinProviders.OFFLINE_PROVIDER_NAME, profileId));
+        return offlineLocalSkin(profileId);
     }
 
     public industries.angelic.wawelauth.wawelcore.data.SkinModel resolveOfflineLocalSkinModel(UUID profileId) {
-        ClientProvider offlineProvider = null;
-        if (accountDAO != null) {
-            // Check if there's an offline account for this profile
-            var account = accountDAO.findByProviderAndProfile(BuiltinProviders.OFFLINE_PROVIDER_NAME, profileId);
-            if (account != null) {
-                offlineProvider = new ClientProvider();
-                offlineProvider.setName(BuiltinProviders.OFFLINE_PROVIDER_NAME);
-            }
-        }
-        if (offlineProvider == null) return null;
-        OfflineLocalSkin localSkin = resolveOfflineLocalSkin(profileId, offlineProvider);
+        if (profileId == null || accountDAO == null) return null;
+        OfflineLocalSkin localSkin = offlineLocalSkin(profileId);
         return localSkin != null && localSkin.getSkinPath() != null ? localSkin.getSkinModel() : null;
+    }
+
+    /** The local skin of the offline account for profileId, or null; see {@link #offlineSkins}. */
+    private OfflineLocalSkin offlineLocalSkin(UUID profileId) {
+        long writes = accountDAO.writes();
+        if (writes < 0) {
+            return toOfflineLocalSkin(
+                accountDAO.findByProviderAndProfile(BuiltinProviders.OFFLINE_PROVIDER_NAME, profileId));
+        }
+        long now = System.nanoTime();
+        if (writes != offlineSkinsWrites || now - offlineSkinsReadAt > OFFLINE_SKINS_TTL_NANOS) {
+            offlineSkins.clear();
+            offlineSkinsWrites = writes;
+            offlineSkinsReadAt = now;
+        }
+        return offlineSkins.computeIfAbsent(
+            profileId,
+            id -> Optional.ofNullable(
+                toOfflineLocalSkin(accountDAO.findByProviderAndProfile(BuiltinProviders.OFFLINE_PROVIDER_NAME, id))))
+            .orElse(null);
     }
 
     // =========================================================================

@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
@@ -18,10 +19,12 @@ import net.minecraft.client.renderer.texture.ITextureObject;
 import net.minecraft.client.resources.SkinManager;
 import net.minecraft.util.ResourceLocation;
 
+import com.google.common.collect.MapMaker;
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.minecraft.InsecureTextureException;
 import com.mojang.authlib.minecraft.MinecraftProfileTexture;
 import com.mojang.authlib.minecraft.MinecraftSessionService;
+import com.mojang.authlib.properties.Property;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
@@ -61,6 +64,12 @@ public class WawelTextureResolver {
 
     private final SessionBridge sessionBridge;
     private final TextureResolverCache cache;
+    /**
+     * Textures decoded from a profile's textures property, by the property's identity: a player head asks for them
+     * every frame, and the property stays the same object as long as its profile does.
+     */
+    private final Map<Property, DecodedTextures> decoded = new MapMaker().weakKeys()
+        .makeMap();
     private final ThreadPoolExecutor executor;
     private final AtomicInteger threadCounter = new AtomicInteger(0);
 
@@ -163,6 +172,7 @@ public class WawelTextureResolver {
     /** Invalidate all cached entries for a player UUID across all providers. */
     public void invalidate(UUID profileId) {
         cache.invalidate(profileId);
+        decoded.clear();
         if (sessionBridge != null) {
             sessionBridge.invalidateProfileCache(profileId);
         }
@@ -173,6 +183,7 @@ public class WawelTextureResolver {
      */
     public void invalidateAll() {
         cache.clear();
+        decoded.clear();
     }
 
     // =========================================================================
@@ -336,24 +347,65 @@ public class WawelTextureResolver {
             return ProfileTextureResult.empty();
         }
 
+        Property property = texturesProperty(filled);
+        if (property != null) {
+            DecodedTextures known = decoded.get(property);
+            if (known != null && known.requireSecure == requireSecure
+                && Objects.equals(known.provider, provider.getName())) {
+                return ProfileTextureResult.resolved(provider, filled, known.textures);
+            }
+        }
+        Map<MinecraftProfileTexture.Type, MinecraftProfileTexture> textures = decodeTextures(
+            filled,
+            sessionService,
+            requireSecure,
+            provider);
+        if (property != null) {
+            decoded.put(property, new DecodedTextures(provider.getName(), requireSecure, textures));
+        }
+        return ProfileTextureResult.resolved(provider, filled, textures);
+    }
+
+    private Map<MinecraftProfileTexture.Type, MinecraftProfileTexture> decodeTextures(GameProfile filled,
+        MinecraftSessionService sessionService, boolean requireSecure, ClientProvider provider) {
         try {
             sessionBridge.setActiveProviderContext(provider);
             Map<MinecraftProfileTexture.Type, MinecraftProfileTexture> textures = sessionService
                 .getTextures(filled, requireSecure);
-            return ProfileTextureResult.resolved(
-                provider,
-                filled,
-                textures == null || textures.isEmpty() ? Collections.emptyMap() : new HashMap<>(textures));
+            return textures == null || textures.isEmpty() ? Collections.emptyMap() : new HashMap<>(textures);
         } catch (InsecureTextureException e) {
             WawelAuth.LOG.warn(
                 "Rejected insecure texture for {} from provider '{}' (requireSecure={}): {}",
-                profile.getId(),
+                filled.getId(),
                 provider.getName(),
                 requireSecure,
                 e.getMessage());
-            return ProfileTextureResult.resolved(provider, filled, Collections.emptyMap());
+            return Collections.emptyMap();
         } finally {
             sessionBridge.clearActiveProviderContext();
+        }
+    }
+
+    private static Property texturesProperty(GameProfile profile) {
+        for (Property property : profile.getProperties()
+            .get("textures")) {
+            return property;
+        }
+        return null;
+    }
+
+    /** What a textures property decoded to for a provider; holds nothing that refers back to the property. */
+    private static final class DecodedTextures {
+
+        final String provider;
+        final boolean requireSecure;
+        final Map<MinecraftProfileTexture.Type, MinecraftProfileTexture> textures;
+
+        DecodedTextures(String provider, boolean requireSecure,
+            Map<MinecraftProfileTexture.Type, MinecraftProfileTexture> textures) {
+            this.provider = provider;
+            this.requireSecure = requireSecure;
+            this.textures = textures;
         }
     }
 
