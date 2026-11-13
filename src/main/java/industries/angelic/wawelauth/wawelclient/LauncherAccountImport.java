@@ -16,7 +16,9 @@ import com.mojang.authlib.minecraft.MinecraftSessionService;
 import com.mojang.authlib.yggdrasil.YggdrasilMinecraftSessionService;
 
 import cpw.mods.fml.common.FMLCommonHandler;
+import industries.angelic.angellib.util.GuiText;
 import industries.angelic.wawelauth.WawelAuth;
+import industries.angelic.wawelauth.client.gui.AccountToast;
 import industries.angelic.wawelauth.client.gui.LauncherImportPromptHandler;
 import industries.angelic.wawelauth.compat.authlibinjector.AuthlibInjectorCompat;
 import industries.angelic.wawelauth.wawelclient.data.AccountStatus;
@@ -263,6 +265,13 @@ public final class LauncherAccountImport {
 
             WawelAuth.LOG
                 .info("Imported launcher session as {} account: {}", provider.getName(), candidate.getUsername());
+            AccountToast.show(
+                () -> GuiText.tr("wawelauth.gui.launcher_import.toast_title", candidate.getUsername()),
+                () -> GuiText.tr("wawelauth.gui.launcher_import.toast_text"),
+                candidate.getProfileUuid(),
+                candidate.getUsername(),
+                provider,
+                id);
         } catch (Exception e) {
             WawelAuth.LOG.warn("Failed to import launcher session: {}", e.getMessage());
         }

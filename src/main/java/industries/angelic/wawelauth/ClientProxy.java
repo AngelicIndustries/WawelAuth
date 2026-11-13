@@ -11,6 +11,7 @@ import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import industries.angelic.angellib.util.drop.GuiTransitionScheduler;
 import industries.angelic.wawelauth.client.WindowDropHandler;
+import industries.angelic.wawelauth.client.gui.AccountToast;
 import industries.angelic.wawelauth.client.gui.GuiSkinCustomizationHandler;
 import industries.angelic.wawelauth.client.gui.WawelAuthKeybind;
 import industries.angelic.wawelauth.client.gui.WawelAuthTooltipStyle;
@@ -67,6 +68,9 @@ public class ClientProxy extends CommonProxy {
         FMLCommonHandler.instance()
             .bus()
             .register(keybind);
+        FMLCommonHandler.instance()
+            .bus()
+            .register(new AccountToast.Renderer());
 
     }
 

@@ -159,6 +159,7 @@ wawelauth.gui.server_picker.tooltip.account=Account: %s
 wawelauth.gui.server_picker.tooltip.provider=Provider: %s
 wawelauth.gui.server_picker.manage_account=Manage Account
 
+wawelauth.gui.account_toast.click_to_open=Click to open
 wawelauth.gui.server_tooltip.account_fallback=account #%s
 wawelauth.gui.server_tooltip.account_selected=Wawel Auth: %s
 wawelauth.gui.server_tooltip.account_auth_label=Account Auth: 
@@ -166,7 +167,7 @@ wawelauth.gui.server_tooltip.auth_label=Auth:
 wawelauth.gui.server_tooltip.available_providers=Available providers:
 wawelauth.gui.server_tooltip.automatic_default=Automatic: launcher account
 wawelauth.gui.server_tooltip.automatic_only=Automatic: only accepted account
-wawelauth.gui.server_tooltip.choose_account=Click the icon to change
+wawelauth.gui.server_tooltip.choose_account=Click the castle icon to change
 wawelauth.gui.server_tooltip.no_account=Wawel Auth: no account selected
 wawelauth.gui.server_tooltip.server_auth_unknown=Server auth provider unknown
 wawelauth.gui.server_tooltip.shift_local_auth=Shift-click to jump to Local Auth
@@ -330,6 +331,8 @@ wawelauth.gui.launcher_import.detail=Account '%s' detected for provider '%s'.
 wawelauth.gui.launcher_import.question=Import this account into Wawel Auth?
 wawelauth.gui.launcher_import.import=Import
 wawelauth.gui.launcher_import.not_now=Not now
+wawelauth.gui.launcher_import.toast_title=Imported account '%s'
+wawelauth.gui.launcher_import.toast_text=Wawel Auth
 wawelauth.gui.launcher_import.dont_ask=Don't ask again
 
 wawelauth.commands.name_requires_online=Plain name '%s' only works while that exact player is online. Use name@provider for offline players.
