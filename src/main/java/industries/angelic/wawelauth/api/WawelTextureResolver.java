@@ -120,6 +120,26 @@ public class WawelTextureResolver {
     }
 
     /**
+     * Whether this profile's skin is still being fetched from the provider or downloaded, or its cape is once it was
+     * asked for. Gives up with the download timeout, so it never stays true.
+     */
+    public boolean isLoading(UUID profileId, ClientProvider provider) {
+        if (profileId == null || provider == null) return false;
+        String cacheKey = buildCacheKey(provider, profileId);
+        TextureEntry skin = cache.get(TextureKind.SKIN, cacheKey);
+        TextureEntry cape = cache.get(TextureKind.CAPE, cacheKey);
+        return skin != null && (skin.state == TextureFetchState.PENDING || isFetchingOrDownloading(skin))
+            || cape != null && isFetchingOrDownloading(cape);
+    }
+
+    private static boolean isFetchingOrDownloading(TextureEntry entry) {
+        TextureFetchState state = entry.state;
+        if (state == TextureFetchState.FETCHING) return true;
+        return state == TextureFetchState.REGISTERED_LOADING && !entry.isRegisteredLoadingTimedOut()
+            && !hasUsableRegisteredTexture(entry.texLocation);
+    }
+
+    /**
      * Try multiple providers and return the first resolved skin.
      * For when we don't know which provider a player belongs to.
      */

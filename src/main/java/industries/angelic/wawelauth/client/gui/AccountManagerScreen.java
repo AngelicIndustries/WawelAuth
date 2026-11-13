@@ -378,6 +378,8 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
      */
     private ClientAccount pendingPreviewAccount;
     private boolean firstFrameDrawn;
+    /** The provider the preview's textures come from, kept so the loading check doesn't read the database. */
+    private ClientProvider previewProvider;
     private WorldClient savedWorld;
     private EntityClientPlayerMP savedPlayer;
     private EntityLivingBase savedRenderViewEntity;
@@ -645,7 +647,11 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
                 .child(
                     new Row().widthRel(1.0f)
                         .height(PREVIEW_MODE_BUTTON_SIZE)
-                        .mainAxisAlignment(Alignment.MainAxis.END)
+                        .mainAxisAlignment(Alignment.MainAxis.SPACE_BETWEEN)
+                        .child(
+                            new Widget<>().size(PREVIEW_MODE_BUTTON_SIZE, PREVIEW_MODE_BUTTON_SIZE)
+                                .margin(PREVIEW_MODE_BUTTON_EDGE_MARGIN, 0)
+                                .background(LoadingSpinner.drawable(this::isPreviewLoading)))
                         .child(previewModeButton()))
                 .child(new Widget<>().size(1, PREVIEW_MODE_BUTTON_EDGE_MARGIN)))
             .child(new Widget<>().size(1, ACCOUNT_DETAIL_TOP_OFFSET))
@@ -1294,6 +1300,7 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
 
     private void showPreview(ClientAccount account) {
         pendingPreviewAccount = null;
+        previewProvider = null;
         GameProfile profile = new GameProfile(account.getProfileUuid(), account.getProfileName());
         previewFrontEntity = new PlayerPreviewEntity(profile);
         previewBackEntity = new PlayerPreviewEntity(profile);
@@ -1320,8 +1327,22 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
         }
     }
 
+    /** Whether the preview is waiting for its player or for the selected account's skin or cape. */
+    private boolean isPreviewLoading() {
+        if (pendingPreviewAccount != null) return true;
+        ClientAccount account = state.selectedAccount;
+        ClientProvider provider = previewProvider;
+        WawelClient client = WawelClient.instance();
+        return account != null && provider != null
+            && previewFrontEntity != null
+            && client != null
+            && client.getTextureResolver()
+                .isLoading(account.getProfileUuid(), provider);
+    }
+
     private void clearPreview() {
         pendingPreviewAccount = null;
+        previewProvider = null;
         if (previewFrontEntity != null) {
             previewFrontEntity.clearTextures();
         }
@@ -1577,6 +1598,7 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
         ClientProvider provider = resolveProvider(
             client.getProviderRegistry()
                 .getProvider(account.getProviderName()));
+        previewProvider = provider;
         if (provider != null) {
             // Warm the resolver cache; the render path reads texture and skin model from it.
             client.getTextureResolver()
