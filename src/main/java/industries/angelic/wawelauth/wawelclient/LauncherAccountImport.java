@@ -8,9 +8,11 @@ import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.util.Session;
 
 import com.google.gson.JsonObject;
+import com.mojang.authlib.minecraft.MinecraftSessionService;
 import com.mojang.authlib.yggdrasil.YggdrasilMinecraftSessionService;
 
 import cpw.mods.fml.common.FMLCommonHandler;
@@ -327,8 +329,10 @@ public final class LauncherAccountImport {
                 }
             }
         } catch (Throwable ignored) {}
-        for (String key : new String[] { "minecraft.api.authHost", "minecraft.api.accountsHost",
-            "minecraft.api.sessionHost", "minecraft.api.servicesHost" }) {
+        // The modern authlib's host overrides, plus the camel-case spelling checked before.
+        for (String key : new String[] { "minecraft.api.session.host", "minecraft.api.auth.host",
+            "minecraft.api.account.host", "minecraft.api.services.host", "minecraft.api.authHost",
+            "minecraft.api.accountsHost", "minecraft.api.sessionHost", "minecraft.api.servicesHost" }) {
             String value = System.getProperty(key);
             if (value != null) {
                 WawelAuth.debug("[launcher-import] system property " + key + "=" + value);
@@ -342,16 +346,32 @@ public final class LauncherAccountImport {
     }
 
     /**
-     * The session server the loaded authlib was built for, when it isn't Mojang's: some launchers ship an authlib with
-     * another provider's addresses in it instead of using authlib-injector, as Ely.by's do.
+     * The session server the loaded authlib talks to, when it isn't Mojang's: some launchers ship an authlib with
+     * another provider's addresses in it instead of using authlib-injector. Ely.by's authlib 1.5 keeps the address in
+     * a static {@code BASE_URL}; the modern one Legacy Launcher puts on 1.7.10 keeps it on the session service.
      */
     private static String authlibSessionHost() {
+        String url = stringField(YggdrasilMinecraftSessionService.class, null, "BASE_URL");
+        if (url == null) {
+            try {
+                MinecraftSessionService service = Minecraft.getMinecraft()
+                    .func_152347_ac();
+                if (service instanceof YggdrasilMinecraftSessionService) {
+                    url = stringField(YggdrasilMinecraftSessionService.class, service, "baseUrl");
+                }
+            } catch (RuntimeException | LinkageError ignored) {}
+        }
+        String host = extractHost(url);
+        WawelAuth.debug("[launcher-import] authlib session host=" + host);
+        return host == null || host.equals("sessionserver.mojang.com") ? null : host;
+    }
+
+    private static String stringField(Class<?> owner, Object target, String name) {
         try {
-            Field baseUrl = YggdrasilMinecraftSessionService.class.getDeclaredField("BASE_URL");
-            baseUrl.setAccessible(true);
-            String host = extractHost((String) baseUrl.get(null));
-            WawelAuth.debug("[launcher-import] authlib session host=" + host);
-            return host == null || host.equals("sessionserver.mojang.com") ? null : host;
+            Field field = owner.getDeclaredField(name);
+            field.setAccessible(true);
+            Object value = field.get(target);
+            return value instanceof String ? (String) value : null;
         } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
             return null;
         }
