@@ -33,6 +33,7 @@ import com.cleanroommc.modularui.screen.viewport.GuiContext;
 import com.cleanroommc.modularui.screen.viewport.ModularGuiContext;
 import com.cleanroommc.modularui.theme.WidgetTheme;
 import com.cleanroommc.modularui.utils.Alignment;
+import com.cleanroommc.modularui.widget.ParentWidget;
 import com.cleanroommc.modularui.widget.Widget;
 import com.cleanroommc.modularui.widgets.ButtonWidget;
 import com.cleanroommc.modularui.widgets.Dialog;
@@ -47,6 +48,7 @@ import cpw.mods.fml.relauncher.SideOnly;
 import industries.angelic.angellib.gui.PanoramaOverlayRenderer;
 import industries.angelic.angellib.util.FileUtil;
 import industries.angelic.angellib.util.GuiText;
+import industries.angelic.wawelauth.Tags;
 import industries.angelic.wawelauth.WawelAuth;
 import industries.angelic.wawelauth.api.SkinLayersHelper;
 import industries.angelic.wawelauth.client.ClipboardHelper;
@@ -135,6 +137,7 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
     private static final int ACCOUNT_ACTION_ICON_HOVER_COLOR = 0xFFFFFFFF;
     private static final int PREVIEW_MODE_BUTTON_SIZE = 22;
     private static final int PREVIEW_MODE_ICON_SIZE = 18;
+    private static final int PREVIEW_LOGO_SIZE = 16;
     private static final int PREVIEW_MODE_BUTTON_EDGE_MARGIN = 3;
     private static final int PREVIEW_ENTITY_ROW_HEIGHT = PREVIEW_PANEL_HEIGHT - PREVIEW_MODE_BUTTON_SIZE
         - PREVIEW_MODE_BUTTON_EDGE_MARGIN;
@@ -236,6 +239,15 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
     private static final IDrawable PREVIEW_MODE_NONE_ICON_HOVER = centeredIcon(
         previewModeTexture("none", ACCOUNT_ACTION_ICON_HOVER_COLOR_TYPE),
         PREVIEW_MODE_ICON_SIZE);
+    /** The same logo as the multiplayer screen's Auth button. */
+    private static final IDrawable PREVIEW_LOGO = centeredIcon(
+        UITexture.builder()
+            .location("wawelauth", "gui/logo_2_outline")
+            .fullImage()
+            .nonOpaque()
+            .name("wawelauth:preview_logo")
+            .build(),
+        PREVIEW_LOGO_SIZE);
     private static final IDrawable PREVIEW_MODE_CAPE_ICON = centeredIcon(
         previewModeTexture("cape", ACCOUNT_ACTION_ICON_COLOR_TYPE),
         PREVIEW_MODE_ICON_SIZE);
@@ -623,37 +635,43 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
             .collapseDisabledChild();
 
         rightPanel.child(
-            new Column().widthRel(1.0f)
+            new ParentWidget<>().widthRel(1.0f)
                 .height(PREVIEW_PANEL_HEIGHT)
                 .margin(0, PREVIEW_PANEL_TOP_MARGIN)
-                .background(WawelAuthStyle.rect(PREVIEW_PANEL_BACKGROUND_COLOR))
-                .disableHoverThemeBackground(true)
                 .child(
-                    new Row().widthRel(1.0f)
-                        .height(PREVIEW_ENTITY_ROW_HEIGHT)
-                        .mainAxisAlignment(Alignment.MainAxis.CENTER)
-                        .crossAxisAlignment(Alignment.CrossAxis.CENTER)
+                    new Column().widthRel(1.0f)
+                        .heightRel(1.0f)
+                        .background(WawelAuthStyle.rect(PREVIEW_PANEL_BACKGROUND_COLOR))
+                        .disableHoverThemeBackground(true)
                         .child(
-                            previewEntityDrawable(() -> previewFrontEntity, false, PREVIEW_ENTITY_VERTICAL_OFFSET)
-                                .asWidget()
-                                .size(72, 66)
-                                .invisible())
-                        .child(new Widget<>().size(6, 66))
+                            new Row().widthRel(1.0f)
+                                .height(PREVIEW_ENTITY_ROW_HEIGHT)
+                                .mainAxisAlignment(Alignment.MainAxis.CENTER)
+                                .crossAxisAlignment(Alignment.CrossAxis.CENTER)
+                                .child(
+                                    previewEntityDrawable(
+                                        () -> previewFrontEntity,
+                                        false,
+                                        PREVIEW_ENTITY_VERTICAL_OFFSET).asWidget()
+                                            .size(72, 66)
+                                            .invisible())
+                                .child(new Widget<>().size(6, 66))
+                                .child(
+                                    previewEntityDrawable(() -> previewBackEntity, true, PREVIEW_ENTITY_VERTICAL_OFFSET)
+                                        .asWidget()
+                                        .size(72, 66)
+                                        .invisible()))
                         .child(
-                            previewEntityDrawable(() -> previewBackEntity, true, PREVIEW_ENTITY_VERTICAL_OFFSET)
-                                .asWidget()
-                                .size(72, 66)
-                                .invisible()))
-                .child(
-                    new Row().widthRel(1.0f)
-                        .height(PREVIEW_MODE_BUTTON_SIZE)
-                        .mainAxisAlignment(Alignment.MainAxis.SPACE_BETWEEN)
-                        .child(
-                            new Widget<>().size(PREVIEW_MODE_BUTTON_SIZE, PREVIEW_MODE_BUTTON_SIZE)
-                                .margin(PREVIEW_MODE_BUTTON_EDGE_MARGIN, 0)
-                                .background(LoadingSpinner.drawable(this::isPreviewLoading)))
-                        .child(previewModeButton()))
-                .child(new Widget<>().size(1, PREVIEW_MODE_BUTTON_EDGE_MARGIN)))
+                            new Row().widthRel(1.0f)
+                                .height(PREVIEW_MODE_BUTTON_SIZE)
+                                .mainAxisAlignment(Alignment.MainAxis.SPACE_BETWEEN)
+                                .child(
+                                    new Widget<>().size(PREVIEW_MODE_BUTTON_SIZE, PREVIEW_MODE_BUTTON_SIZE)
+                                        .margin(PREVIEW_MODE_BUTTON_EDGE_MARGIN, 0)
+                                        .background(LoadingSpinner.drawable(this::isPreviewLoading)))
+                                .child(previewModeButton()))
+                        .child(new Widget<>().size(1, PREVIEW_MODE_BUTTON_EDGE_MARGIN)))
+                .child(previewLogo()))
             .child(new Widget<>().size(1, ACCOUNT_DETAIL_TOP_OFFSET))
             .child(new TextWidget<>(IKey.dynamic(() -> {
                 if (state.selectedAccount == null) return GuiText.tr("wawelauth.gui.common.no_account_selected");
@@ -1065,6 +1083,15 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
             default:
                 return hover ? PREVIEW_MODE_NONE_ICON_HOVER : PREVIEW_MODE_NONE_ICON;
         }
+    }
+
+    /** Wawel Auth's logo in the preview's top right corner, across from the loading spinner, with the version. */
+    private static Widget<?> previewLogo() {
+        return new Widget<>().size(PREVIEW_MODE_BUTTON_SIZE, PREVIEW_MODE_BUTTON_SIZE)
+            .top(PREVIEW_MODE_BUTTON_EDGE_MARGIN)
+            .right(PREVIEW_MODE_BUTTON_EDGE_MARGIN)
+            .overlay(PREVIEW_LOGO)
+            .addTooltipLine(WawelAuth.MODNAME + " v" + Tags.VERSION);
     }
 
     private static Widget<?> actionGap() {
