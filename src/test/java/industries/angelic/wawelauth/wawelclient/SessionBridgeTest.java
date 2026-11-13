@@ -126,6 +126,28 @@ public class SessionBridgeTest {
             accounts.bridge.findAccountForUnboundServer(advertisedCapabilities(ALPHA_AUTH)));
     }
 
+    @Test
+    public void serverListShowsTheDefaultAccountAsSuch() {
+        Accounts accounts = new Accounts();
+        accounts.bridge.setDefaultAccountId(accounts.beta);
+
+        SessionBridge.AutomaticAccount automatic = accounts.bridge.peekAccountForUnboundServer(null);
+
+        Assert.assertEquals(accounts.beta, automatic.account.getId());
+        Assert.assertTrue(automatic.isDefault);
+    }
+
+    @Test
+    public void serverListFollowsANewDefaultAccountRightAway() {
+        Accounts accounts = new Accounts();
+        ServerCapabilities capabilities = advertisedCapabilities(BETA_AUTH);
+        Assert.assertFalse(accounts.bridge.peekAccountForUnboundServer(capabilities).isDefault);
+
+        accounts.bridge.setDefaultAccountId(accounts.beta);
+
+        Assert.assertTrue(accounts.bridge.peekAccountForUnboundServer(capabilities).isDefault);
+    }
+
     private static final String ALPHA_AUTH = "https://alpha.example/authserver";
     private static final String BETA_AUTH = "https://beta.example/authserver";
 

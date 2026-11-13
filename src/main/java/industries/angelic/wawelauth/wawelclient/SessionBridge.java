@@ -11,9 +11,11 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -66,6 +68,11 @@ public class SessionBridge {
     private volatile ClientProvider activeProvider;
     private volatile String lastActivationError;
     private volatile long defaultAccountId = -1L;
+    /** The automatic account per server, for the server list, which asks every frame. */
+    private final Map<ServerCapabilities, AutomaticChoice> automaticChoices = Collections
+        .synchronizedMap(new WeakHashMap<>());
+    private volatile AutomaticChoice automaticChoiceWithoutCapabilities;
+    private static final long AUTOMATIC_CHOICE_TTL_NANOS = 5_000_000_000L;
     private volatile List<ClientProvider> trustedProviders = Collections.emptyList();
     private volatile List<PublicKey> trustedKeys = Collections.emptyList();
     private final ConcurrentHashMap<String, GameProfile> profileCache = new ConcurrentHashMap<>();
@@ -306,6 +313,62 @@ public class SessionBridge {
             }
         }
         return findSingleMatchingAccountId(capabilities);
+    }
+
+    /**
+     * The account {@link #findAccountForUnboundServer} would join this server with, for showing it beforehand, or
+     * null. Read again after account changes and every few seconds, so it can be asked every frame.
+     */
+    public AutomaticAccount peekAccountForUnboundServer(ServerCapabilities capabilities) {
+        long writes = accountDAO.writes();
+        long defaultId = this.defaultAccountId;
+        long now = System.nanoTime();
+        AutomaticChoice cached = capabilities == null ? automaticChoiceWithoutCapabilities
+            : automaticChoices.get(capabilities);
+        if (cached != null && cached.writes == writes
+            && cached.defaultId == defaultId
+            && now - cached.readAtNanos < AUTOMATIC_CHOICE_TTL_NANOS) {
+            return cached.account;
+        }
+
+        long accountId = findAccountForUnboundServer(capabilities);
+        ClientAccount account = accountId < 0 ? null : accountDAO.findById(accountId);
+        AutomaticAccount automatic = account == null ? null : new AutomaticAccount(account, accountId == defaultId);
+        AutomaticChoice choice = new AutomaticChoice(writes, defaultId, now, automatic);
+        if (capabilities == null) {
+            automaticChoiceWithoutCapabilities = choice;
+        } else {
+            automaticChoices.put(capabilities, choice);
+        }
+        return automatic;
+    }
+
+    /** An account picked for a server that has none bound. */
+    public static final class AutomaticAccount {
+
+        public final ClientAccount account;
+        /** True when it's the default account, false when it's the only one the server accepts. */
+        public final boolean isDefault;
+
+        AutomaticAccount(ClientAccount account, boolean isDefault) {
+            this.account = account;
+            this.isDefault = isDefault;
+        }
+    }
+
+    private static final class AutomaticChoice {
+
+        final long writes;
+        final long defaultId;
+        final long readAtNanos;
+        final AutomaticAccount account;
+
+        AutomaticChoice(long writes, long defaultId, long readAtNanos, AutomaticAccount account) {
+            this.writes = writes;
+            this.defaultId = defaultId;
+            this.readAtNanos = readAtNanos;
+            this.account = account;
+        }
     }
 
     /** The accounts a server says it accepts, by local auth key, auth server or provider name. */

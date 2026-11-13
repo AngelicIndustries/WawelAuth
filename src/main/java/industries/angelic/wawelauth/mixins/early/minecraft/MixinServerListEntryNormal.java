@@ -35,6 +35,7 @@ import industries.angelic.wawelauth.client.gui.StatusColors;
 import industries.angelic.wawelauth.wawelclient.IServerDataExt;
 import industries.angelic.wawelauth.wawelclient.ServerBindingPersistence;
 import industries.angelic.wawelauth.wawelclient.ServerCapabilities;
+import industries.angelic.wawelauth.wawelclient.SessionBridge;
 import industries.angelic.wawelauth.wawelclient.WawelClient;
 import industries.angelic.wawelauth.wawelclient.data.AccountStatus;
 import industries.angelic.wawelauth.wawelclient.data.ClientAccount;
@@ -63,6 +64,7 @@ public class MixinServerListEntryNormal {
     private static final int ACCOUNT_HEAD_SIZE = 12;
     private static final int ACCOUNT_STATUS_SIZE = 8;
     private static final int ACCOUNT_DECORATION_GAP = 2;
+    private static final float AUTOMATIC_ACCOUNT_HEAD_ALPHA = 0.55F;
 
     private static final ResourceLocation ICON_AUTHED = new ResourceLocation("wawelauth", "textures/authed.png");
     private static final ResourceLocation ICON_LOADING = new ResourceLocation("wawelauth", "textures/loading.png");
@@ -90,11 +92,21 @@ public class MixinServerListEntryNormal {
         AccountStatus selectedStatus = null;
         boolean wawelAuthLoading = field_148301_e.field_78841_f && field_148301_e.pingToServer == -2L;
         boolean wawelAuthAdvertised = caps != null && caps.getUpdatedAtMs() > 0L && caps.isWawelAuthAdvertised();
+        // Without a bound account, show the one joining would pick, faded, so it's never a surprise.
+        SessionBridge.AutomaticAccount automaticAccount = null;
         if (accountId >= 0 && client != null) {
             selectedAccount = client.getAccountManager()
                 .getAccount(accountId);
             selectedStatus = client.getAccountManager()
                 .getAccountStatus(accountId);
+        } else if (client != null) {
+            automaticAccount = client.getSessionBridge()
+                .peekAccountForUnboundServer(caps);
+            if (automaticAccount != null) {
+                selectedAccount = automaticAccount.account;
+                selectedStatus = client.getAccountManager()
+                    .getAccountStatus(selectedAccount.getId());
+            }
         }
 
         int statusX = iconX - ACCOUNT_DECORATION_GAP - ACCOUNT_STATUS_SIZE;
@@ -149,21 +161,27 @@ public class MixinServerListEntryNormal {
                 headY,
                 selectedAccount,
                 normalizeTooltipValue(ext.getWawelProviderName()),
-                client);
-            if (shiftDown && headHovering) {
+                client,
+                automaticAccount != null ? AUTOMATIC_ACCOUNT_HEAD_ALPHA : 1.0F);
+            if (shiftDown && headHovering && automaticAccount == null) {
                 Gui.drawRect(headX, headY, headX + ACCOUNT_HEAD_SIZE, headY + ACCOUNT_HEAD_SIZE, 0x55FF0000);
             }
         }
 
         if (headHovering && selectedAccount != null) {
             List<String> tooltipLines = new ArrayList<>();
-            tooltipLines.add(EnumChatFormatting.WHITE + resolveAccountDisplayName(selectedAccount, accountId));
+            tooltipLines
+                .add(EnumChatFormatting.WHITE + resolveAccountDisplayName(selectedAccount, selectedAccount.getId()));
+            if (automaticAccount != null) {
+                tooltipLines.add(EnumChatFormatting.GRAY + automaticReason(automaticAccount));
+                tooltipLines.add(EnumChatFormatting.GRAY + GuiText.tr("wawelauth.gui.server_tooltip.choose_account"));
+            }
             if (shiftDown && selectedAccount.getProfileUuid() != null) {
                 tooltipLines.add(
                     EnumChatFormatting.GRAY + selectedAccount.getProfileUuid()
                         .toString());
             }
-            if (shiftDown) {
+            if (shiftDown && automaticAccount == null) {
                 tooltipLines.add(EnumChatFormatting.RED + GuiText.tr("wawelauth.gui.server_tooltip.unselect_account"));
             }
             field_148303_c.func_146793_a(joinTooltipLines(tooltipLines));
@@ -235,6 +253,23 @@ public class MixinServerListEntryNormal {
                                 + statusColorCode(status)
                                 + STATUS_SQUARE);
                     }
+                }
+            } else if (selectedAccount != null) {
+                String name = normalizeTooltipValue(selectedAccount.getProfileName());
+                accountLines.add(name != null ? name : "?");
+                accountLines.add(EnumChatFormatting.GRAY + automaticReason(automaticAccount));
+                if (selectedAccount.getProfileUuid() != null && field_148303_c instanceof IServerTooltipFaceHost) {
+                    ((IServerTooltipFaceHost) field_148303_c).wawelauth$setServerTooltipFace(
+                        name != null ? name : "?",
+                        selectedAccount.getProfileUuid(),
+                        selectedAccount.getProviderName());
+                }
+                if (selectedStatus != null) {
+                    accountLines.add(
+                        EnumChatFormatting.GRAY + GuiText.tr("wawelauth.gui.common.status")
+                            + ": "
+                            + statusColorCode(selectedStatus)
+                            + STATUS_SQUARE);
                 }
             } else {
                 accountLines.add(GuiText.tr("wawelauth.gui.server_tooltip.no_account"));
@@ -431,8 +466,14 @@ public class MixinServerListEntryNormal {
             StatusColors.getColor(status));
     }
 
+    private static String automaticReason(SessionBridge.AutomaticAccount automatic) {
+        return GuiText.tr(
+            automatic.isDefault ? "wawelauth.gui.server_tooltip.automatic_default"
+                : "wawelauth.gui.server_tooltip.automatic_only");
+    }
+
     private static void drawSelectedAccountHead(int x, int y, ClientAccount account, String fallbackProviderName,
-        WawelClient client) {
+        WawelClient client, float alpha) {
         ResourceLocation skin = resolveSelectedAccountSkin(account, fallbackProviderName, client);
 
         GL11.glPushAttrib(GL11.GL_ALL_ATTRIB_BITS);
@@ -444,7 +485,7 @@ public class MixinServerListEntryNormal {
             GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
             GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
 
-            WawelFaceRendererClient.drawFace(skin, x, y, ACCOUNT_HEAD_SIZE, ACCOUNT_HEAD_SIZE, 1.0F);
+            WawelFaceRendererClient.drawFace(skin, x, y, ACCOUNT_HEAD_SIZE, ACCOUNT_HEAD_SIZE, alpha);
         } finally {
             GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
             GL11.glPopAttrib();
