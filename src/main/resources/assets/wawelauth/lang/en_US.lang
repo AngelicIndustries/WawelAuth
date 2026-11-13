@@ -7,7 +7,9 @@ wawelauth.gui.multiplayer.remove_provider.subtitle=No other server entries refer
 wawelauth.gui.multiplayer.remove_provider.hint=This will also remove it for any Minecraft instance that shares Wawel Auth data.
 wawelauth.gui.singleplayer.account=Account
 wawelauth.gui.singleplayer.account_fallback=Account
+wawelauth.gui.singleplayer.choose_account=Click Account to change
 wawelauth.gui.singleplayer_picker.title=Select Singleplayer Account
+wawelauth.gui.singleplayer_picker.automatic=Automatic: %s
 
 wawelauth.gui.common.account=account
 wawelauth.gui.common.api_root=API Root: %s

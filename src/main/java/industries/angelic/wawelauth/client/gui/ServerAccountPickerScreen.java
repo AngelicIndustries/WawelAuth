@@ -46,6 +46,7 @@ import industries.angelic.wawelauth.wawelclient.ProviderRegistry;
 import industries.angelic.wawelauth.wawelclient.ServerBindingPersistence;
 import industries.angelic.wawelauth.wawelclient.ServerCapabilities;
 import industries.angelic.wawelauth.wawelclient.ServerConnectionProxySupport;
+import industries.angelic.wawelauth.wawelclient.SessionBridge;
 import industries.angelic.wawelauth.wawelclient.SingleplayerAccountPersistence;
 import industries.angelic.wawelauth.wawelclient.WawelClient;
 import industries.angelic.wawelauth.wawelclient.data.AccountStatus;
@@ -679,7 +680,17 @@ public class ServerAccountPickerScreen extends ParentAwareModularScreen {
         entry.widthRel(1.0f)
             .height(16);
 
-        TextWidget<?> label = new TextWidget<>(GuiText.key("wawelauth.gui.common.no_account_selected"));
+        // Without a choice, singleplayer uses the account the launcher started the game with, when there is one.
+        WawelClient client = WawelClient.instance();
+        SessionBridge.AutomaticAccount automatic = client == null ? null
+            : client.getSessionBridge()
+                .peekAccountForUnboundServer(null);
+        String automaticName = automatic != null && automatic.account.getProfileName() != null
+            ? automatic.account.getProfileName()
+            : null;
+        TextWidget<?> label = new TextWidget<>(
+            automaticName != null ? IKey.str(GuiText.tr("wawelauth.gui.singleplayer_picker.automatic", automaticName))
+                : GuiText.key("wawelauth.gui.common.no_account_selected"));
         label.widthRel(1.0f)
             .heightRel(1.0f)
             .color(

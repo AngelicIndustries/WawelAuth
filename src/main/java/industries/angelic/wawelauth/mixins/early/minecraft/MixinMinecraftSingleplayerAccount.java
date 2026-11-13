@@ -26,8 +26,18 @@ public class MixinMinecraftSingleplayerAccount {
 
         ClientAccount account = SingleplayerAccountPersistence.resolveSelectedAccount(client.getAccountManager());
         if (account == null) {
+            // Without a chosen account, play as the account the launcher started the game with, as on servers.
+            long automatic = client.getSessionBridge()
+                .findAccountForUnboundServer(null);
+            if (automatic < 0) {
+                client.getSessionBridge()
+                    .clearActiveAccount();
+                return;
+            }
             client.getSessionBridge()
-                .clearActiveAccount();
+                .activateAccount(automatic);
+            WawelAuth.debug(
+                "Prepared automatic singleplayer account " + automatic + " before launching world '" + worldName + "'");
             return;
         }
 

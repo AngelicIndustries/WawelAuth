@@ -1,6 +1,7 @@
 package industries.angelic.wawelauth.mixins.early.minecraft;
 
-import java.util.Collections;
+import java.util.ArrayList;
+import java.util.List;
 
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
@@ -16,10 +17,12 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import industries.angelic.angellib.util.GuiText;
 import industries.angelic.wawelauth.api.WawelFaceRendererClient;
 import industries.angelic.wawelauth.api.WawelTextureResolver;
 import industries.angelic.wawelauth.client.gui.AuthButton;
 import industries.angelic.wawelauth.client.gui.ServerAccountPickerScreen;
+import industries.angelic.wawelauth.wawelclient.SessionBridge;
 import industries.angelic.wawelauth.wawelclient.SingleplayerAccountPersistence;
 import industries.angelic.wawelauth.wawelclient.WawelClient;
 import industries.angelic.wawelauth.wawelclient.data.ClientAccount;
@@ -33,6 +36,8 @@ public abstract class MixinGuiSelectWorld extends GuiScreen {
     private static final int WAWELAUTH_SINGLEPLAYER_HEAD_SIZE = 16;
     @Unique
     private static final int WAWELAUTH_SINGLEPLAYER_HEAD_GAP = 2;
+    @Unique
+    private static final float WAWELAUTH_AUTOMATIC_HEAD_ALPHA = 0.55F;
     @Unique
     private GuiButton wawelauth$accountButton;
 
@@ -76,6 +81,15 @@ public abstract class MixinGuiSelectWorld extends GuiScreen {
         }
 
         ClientAccount account = wawelauth$getSelectedSingleplayerAccount();
+        // Without a chosen account, show the one playing would use, faded, as the server list does.
+        SessionBridge.AutomaticAccount automatic = null;
+        if (account == null) {
+            WawelClient client = WawelClient.instance();
+            automatic = client == null ? null
+                : client.getSessionBridge()
+                    .peekAccountForUnboundServer(null);
+            account = automatic != null ? automatic.account : null;
+        }
         if (account == null || account.getProfileUuid() == null) {
             return;
         }
@@ -85,17 +99,19 @@ public abstract class MixinGuiSelectWorld extends GuiScreen {
         int headY = this.wawelauth$accountButton.yPosition
             + Math.max(0, (this.wawelauth$accountButton.height - WAWELAUTH_SINGLEPLAYER_HEAD_SIZE) / 2);
 
-        wawelauth$drawFace(account, headX, headY);
+        wawelauth$drawFace(account, headX, headY, automatic != null ? WAWELAUTH_AUTOMATIC_HEAD_ALPHA : 1.0F);
 
         if (mouseX >= headX && mouseX < headX + WAWELAUTH_SINGLEPLAYER_HEAD_SIZE
             && mouseY >= headY
             && mouseY < headY + WAWELAUTH_SINGLEPLAYER_HEAD_SIZE) {
             String profileName = account.getProfileName() != null ? account.getProfileName() : "?";
-            this.drawHoveringText(
-                Collections.singletonList(EnumChatFormatting.WHITE + profileName),
-                mouseX,
-                mouseY,
-                this.fontRendererObj);
+            List<String> lines = new ArrayList<>();
+            lines.add(EnumChatFormatting.WHITE + profileName);
+            if (automatic != null) {
+                lines.add(EnumChatFormatting.GRAY + GuiText.tr("wawelauth.gui.server_tooltip.automatic_default"));
+                lines.add(EnumChatFormatting.GRAY + GuiText.tr("wawelauth.gui.singleplayer.choose_account"));
+            }
+            this.drawHoveringText(lines, mouseX, mouseY, this.fontRendererObj);
         }
     }
 
@@ -109,7 +125,7 @@ public abstract class MixinGuiSelectWorld extends GuiScreen {
     }
 
     @Unique
-    private void wawelauth$drawFace(ClientAccount account, int x, int y) {
+    private void wawelauth$drawFace(ClientAccount account, int x, int y, float alpha) {
         WawelClient client = WawelClient.instance();
         ResourceLocation skin = WawelTextureResolver.getDefaultSkin();
         if (client != null) {
@@ -131,7 +147,7 @@ public abstract class MixinGuiSelectWorld extends GuiScreen {
             RenderHelper.disableStandardItemLighting();
 
             WawelFaceRendererClient
-                .drawFace(skin, x, y, WAWELAUTH_SINGLEPLAYER_HEAD_SIZE, WAWELAUTH_SINGLEPLAYER_HEAD_SIZE, 1.0F);
+                .drawFace(skin, x, y, WAWELAUTH_SINGLEPLAYER_HEAD_SIZE, WAWELAUTH_SINGLEPLAYER_HEAD_SIZE, alpha);
         } finally {
             GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
             GL11.glPopAttrib();
