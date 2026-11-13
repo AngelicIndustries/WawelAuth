@@ -1238,9 +1238,12 @@ public class AccountManager {
         // A launcher session is the launcher's to refresh: refreshing it here would revoke the launcher's copy.
         // The launcher hands over a fresh token at the next start.
         if (!account.ownsSession()) {
-            markStatus(account, AccountStatus.EXPIRED, "Launcher session expired");
-            WawelAuth
-                .debug("Account " + account.getId() + " (" + account.getProfileName() + ") launcher session expired");
+            markStatus(account, AccountStatus.EXPIRED, "Session expired");
+            WawelAuth.debug(
+                "Account " + account.getId()
+                    + " ("
+                    + account.getProfileName()
+                    + ") expired, not refreshing a session Wawel Auth didn't sign in");
             return AccountStatus.EXPIRED;
         }
 
