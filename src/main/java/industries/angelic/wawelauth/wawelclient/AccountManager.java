@@ -302,10 +302,11 @@ public class AccountManager {
                     return;
                 }
 
-                // Best-effort invalidation on the server
+                // Best-effort invalidation on the server, unless the session is the launcher's
                 try {
                     ClientProvider provider = providerDAO.findByName(account.getProviderName());
-                    if (provider != null && !BuiltinProviders.isOfflineProvider(provider.getName())) {
+                    if (provider != null && !BuiltinProviders.isOfflineProvider(provider.getName())
+                        && account.ownsSession()) {
                         String token = account.getAccessToken();
                         JsonObject body = new JsonObject();
                         body.addProperty("accessToken", token);
@@ -1121,6 +1122,20 @@ public class AccountManager {
     }
 
     /**
+     * Runs {@code action} holding the account's token lock, so it can't interleave with a validate or refresh that
+     * would write an older token back.
+     */
+    void withTokenLock(long accountId, Runnable action) {
+        ReentrantLock lock = accountTokenLock(accountId);
+        lock.lock();
+        try {
+            action.run();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /**
      * Refresh the in-memory token-bearing fields from storage. Called while
      * holding the per-account lock so a refresh never acts on a token that an
      * interactive login already replaced.
@@ -1218,6 +1233,15 @@ public class AccountManager {
             WawelAuth.debug("Validate network error for account " + account.getId() + ": " + e.getMessage());
             markUnverified(account, e.getMessage());
             return AccountStatus.UNVERIFIED;
+        }
+
+        // A launcher session is the launcher's to refresh: refreshing it here would revoke the launcher's copy.
+        // The launcher hands over a fresh token at the next start.
+        if (!account.ownsSession()) {
+            markStatus(account, AccountStatus.EXPIRED, "Launcher session expired");
+            WawelAuth
+                .debug("Account " + account.getId() + " (" + account.getProfileName() + ") launcher session expired");
+            return AccountStatus.EXPIRED;
         }
 
         // Step 2: Refresh

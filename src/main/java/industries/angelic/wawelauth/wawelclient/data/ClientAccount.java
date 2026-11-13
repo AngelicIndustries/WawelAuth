@@ -2,6 +2,7 @@ package industries.angelic.wawelauth.wawelclient.data;
 
 import java.util.UUID;
 
+import industries.angelic.angellib.util.StringUtil;
 import industries.angelic.wawelauth.wawelcore.data.SkinModel;
 
 /**
@@ -185,6 +186,15 @@ public class ClientAccount {
 
     public void setClientToken(String clientToken) {
         this.clientToken = clientToken;
+    }
+
+    /**
+     * Whether Wawel Auth signed this account in itself and so owns its session. A session imported from the launcher
+     * has neither a client token nor a refresh token: the launcher keeps it, and refreshing or invalidating it here
+     * would sign the launcher out.
+     */
+    public boolean ownsSession() {
+        return StringUtil.trimToNull(refreshToken) != null || StringUtil.trimToNull(clientToken) != null;
     }
 
     public String getUserPropertiesJson() {

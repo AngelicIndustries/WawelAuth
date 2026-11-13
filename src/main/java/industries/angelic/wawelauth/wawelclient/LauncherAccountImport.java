@@ -2,6 +2,7 @@ package industries.angelic.wawelauth.wawelclient;
 
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
+import java.lang.reflect.Field;
 import java.net.URI;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
@@ -10,9 +11,9 @@ import java.util.concurrent.Executors;
 import net.minecraft.util.Session;
 
 import com.google.gson.JsonObject;
+import com.mojang.authlib.yggdrasil.YggdrasilMinecraftSessionService;
 
 import cpw.mods.fml.common.FMLCommonHandler;
-import industries.angelic.angellib.util.StringUtil;
 import industries.angelic.wawelauth.WawelAuth;
 import industries.angelic.wawelauth.client.gui.LauncherImportPromptHandler;
 import industries.angelic.wawelauth.compat.authlibinjector.AuthlibInjectorCompat;
@@ -254,20 +255,26 @@ public final class LauncherAccountImport {
     }
 
     private void resyncImportedAccount(ClientAccount existing, String token, String username) {
-        if (StringUtil.trimToNull(existing.getRefreshToken()) != null) {
-            WawelAuth.debug("Account '" + username + "' is WawelAuth-managed, leaving launcher session untouched");
-            return;
-        }
-        long now = System.currentTimeMillis();
-        existing.setAccessToken(token);
-        existing.setStatus(AccountStatus.VALID);
-        existing.setConsecutiveFailures(0);
-        existing.setLastValidatedAt(now);
-        existing.setTokenIssuedAt(now);
-        existing.setLastError(null);
-        accountDAO.update(existing);
-        accountManager.cacheStatus(existing.getId(), AccountStatus.VALID);
-        WawelAuth.LOG.info("Re-synced imported account from launcher session: {}", username);
+        accountManager.withTokenLock(existing.getId(), () -> {
+            ClientAccount account = accountDAO.findById(existing.getId());
+            if (account == null) {
+                return;
+            }
+            if (account.ownsSession()) {
+                WawelAuth.debug("Account '" + username + "' is WawelAuth-managed, leaving launcher session untouched");
+                return;
+            }
+            long now = System.currentTimeMillis();
+            account.setAccessToken(token);
+            account.setStatus(AccountStatus.VALID);
+            account.setConsecutiveFailures(0);
+            account.setLastValidatedAt(now);
+            account.setTokenIssuedAt(now);
+            account.setLastError(null);
+            accountDAO.update(account);
+            accountManager.cacheStatus(account.getId(), AccountStatus.VALID);
+            WawelAuth.LOG.info("Re-synced imported account from launcher session: {}", username);
+        });
     }
 
     private ClientProvider resolveLauncherSessionProvider() {
@@ -288,9 +295,9 @@ public final class LauncherAccountImport {
             if (authlibInjectorActive && BuiltinProviders.isMojangProvider(provider.getName())) {
                 continue;
             }
-            if (backendHost.equals(extractHost(provider.getApiRoot()))
-                || backendHost.equals(extractHost(provider.getAuthServerUrl()))
-                || backendHost.equals(extractHost(provider.getSessionServerUrl()))) {
+            if (hostMatches(backendHost, extractHost(provider.getApiRoot()))
+                || hostMatches(backendHost, extractHost(provider.getAuthServerUrl()))
+                || hostMatches(backendHost, extractHost(provider.getSessionServerUrl()))) {
                 return provider;
             }
         }
@@ -331,7 +338,31 @@ public final class LauncherAccountImport {
                 return host;
             }
         }
-        return null;
+        return authlibSessionHost();
+    }
+
+    /**
+     * The session server the loaded authlib was built for, when it isn't Mojang's: some launchers ship an authlib with
+     * another provider's addresses in it instead of using authlib-injector, as Ely.by's do.
+     */
+    private static String authlibSessionHost() {
+        try {
+            Field baseUrl = YggdrasilMinecraftSessionService.class.getDeclaredField("BASE_URL");
+            baseUrl.setAccessible(true);
+            String host = extractHost((String) baseUrl.get(null));
+            WawelAuth.debug("[launcher-import] authlib session host=" + host);
+            return host == null || host.equals("sessionserver.mojang.com") ? null : host;
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
+            return null;
+        }
+    }
+
+    /**
+     * Whether a provider's host belongs to the launcher's auth backend: the same host, or one under it, as for
+     * authlib-injector's short form {@code ely.by} and Ely.by's {@code account.ely.by}.
+     */
+    private static boolean hostMatches(String backendHost, String providerHost) {
+        return providerHost != null && (providerHost.equals(backendHost) || providerHost.endsWith("." + backendHost));
     }
 
     private ClientProvider probeProviderByTokenValidation(String token) {
@@ -368,7 +399,9 @@ public final class LauncherAccountImport {
             return null;
         }
         try {
-            String host = new URI(rawUrl).getHost();
+            String url = rawUrl.trim();
+            // authlib-injector also takes a bare host, such as ely.by.
+            String host = new URI(url.contains("://") ? url : "https://" + url).getHost();
             return host != null ? host.toLowerCase() : null;
         } catch (Exception e) {
             return null;
