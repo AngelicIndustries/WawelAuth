@@ -79,6 +79,76 @@ public class SessionBridgeTest {
         Assert.assertSame(signedProfile, cache.get("provider:alpha|" + profileId + "|U"));
     }
 
+    @Test
+    public void unboundServerTakesTheDefaultAccountItAcceptsOverOtherMatches() {
+        Accounts accounts = new Accounts();
+        accounts.bridge.setDefaultAccountId(accounts.alphaFirst);
+
+        Assert.assertEquals(
+            accounts.alphaFirst,
+            accounts.bridge.findAccountForUnboundServer(advertisedCapabilities(ALPHA_AUTH)));
+    }
+
+    @Test
+    public void unboundServerFallsBackToTheOnlyAcceptedAccount() {
+        Accounts accounts = new Accounts();
+        accounts.bridge.setDefaultAccountId(accounts.alphaFirst);
+
+        Assert.assertEquals(
+            accounts.beta,
+            accounts.bridge.findAccountForUnboundServer(advertisedCapabilities(BETA_AUTH)));
+    }
+
+    @Test
+    public void serverWithoutWawelAuthTakesTheDefaultAccount() {
+        Accounts accounts = new Accounts();
+        accounts.bridge.setDefaultAccountId(accounts.beta);
+
+        Assert.assertEquals(accounts.beta, accounts.bridge.findAccountForUnboundServer(null));
+    }
+
+    @Test
+    public void serverWithoutWawelAuthHasNoAccountWithoutADefault() {
+        Accounts accounts = new Accounts();
+
+        Assert.assertEquals(-1L, accounts.bridge.findAccountForUnboundServer(null));
+    }
+
+    @Test
+    public void expiredDefaultAccountIsSkipped() {
+        Accounts accounts = new Accounts();
+        accounts.accountDao.findById(accounts.alphaFirst)
+            .setStatus(AccountStatus.EXPIRED);
+        accounts.bridge.setDefaultAccountId(accounts.alphaFirst);
+
+        Assert.assertEquals(
+            accounts.alphaSecond,
+            accounts.bridge.findAccountForUnboundServer(advertisedCapabilities(ALPHA_AUTH)));
+    }
+
+    private static final String ALPHA_AUTH = "https://alpha.example/authserver";
+    private static final String BETA_AUTH = "https://beta.example/authserver";
+
+    /** Two Alpha accounts and one Beta account. */
+    private static final class Accounts {
+
+        final InMemoryAccountDao accountDao = new InMemoryAccountDao();
+        final SessionBridge bridge;
+        final long alphaFirst;
+        final long alphaSecond;
+        final long beta;
+
+        Accounts() {
+            InMemoryProviderDao providerDao = new InMemoryProviderDao();
+            providerDao.create(provider("Alpha", ALPHA_AUTH));
+            providerDao.create(provider("Beta", BETA_AUTH));
+            alphaFirst = accountDao.create(account("Alpha", UUID.randomUUID()));
+            alphaSecond = accountDao.create(account("Alpha", UUID.randomUUID()));
+            beta = accountDao.create(account("Beta", UUID.randomUUID()));
+            bridge = new SessionBridge(null, providerDao, accountDao, null, launcherSession("launcher-token"));
+        }
+    }
+
     private static Session launcherSession(String token) {
         return new Session(
             "LauncherUser",

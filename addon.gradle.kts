@@ -205,6 +205,7 @@ val curseForgeJar = tasks.register<Jar>("curseForgeJar") {
             "industries/angelic/wawelauth/wawelclient/LauncherAccountImport\$*.class",
             "industries/angelic/wawelauth/wawelclient/LauncherImportSuppression.class",
             "industries/angelic/wawelauth/wawelclient/LauncherImportSuppression\$*.class",
+            "industries/angelic/wawelauth/wawelclient/LauncherImportConfig.class",
         )
     }
     from(curseForgeReplacementJar.flatMap { it.archiveFile }.map { zipTree(it) }) {
@@ -463,6 +464,7 @@ val verifyCurseForgeJars = tasks.register("verifyCurseForgeJars") {
             "LauncherAccountImport",
             "LauncherImportPrompt",
             "LauncherImportSuppression",
+            "LauncherImportConfig",
         )
         val forbiddenMarkers = listOf(
             "LauncherAccountImport",

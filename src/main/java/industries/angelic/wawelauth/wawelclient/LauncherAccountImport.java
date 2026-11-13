@@ -43,6 +43,7 @@ public final class LauncherAccountImport {
     private final ClientProviderDAO providerDAO;
     private final ClientAccountDAO accountDAO;
     private final AccountManager accountManager;
+    private final SessionBridge sessionBridge;
     private final Session launcherSession;
     private final ExecutorService executor;
     private final LauncherImportPromptHandler promptHandler;
@@ -50,11 +51,13 @@ public final class LauncherAccountImport {
     private volatile Candidate pendingImport;
 
     private LauncherAccountImport(YggdrasilHttpClient httpClient, ClientProviderDAO providerDAO,
-        ClientAccountDAO accountDAO, AccountManager accountManager, Session launcherSession) {
+        ClientAccountDAO accountDAO, AccountManager accountManager, SessionBridge sessionBridge,
+        Session launcherSession) {
         this.httpClient = httpClient;
         this.providerDAO = providerDAO;
         this.accountDAO = accountDAO;
         this.accountManager = accountManager;
+        this.sessionBridge = sessionBridge;
         this.launcherSession = launcherSession;
         this.executor = Executors.newSingleThreadExecutor(r -> {
             Thread thread = new Thread(r, "WawelAuth-LauncherImport");
@@ -65,7 +68,8 @@ public final class LauncherAccountImport {
     }
 
     public static synchronized void start(YggdrasilHttpClient httpClient, ClientProviderDAO providerDAO,
-        ClientAccountDAO accountDAO, AccountManager accountManager, Session launcherSession) {
+        ClientAccountDAO accountDAO, AccountManager accountManager, SessionBridge sessionBridge,
+        Session launcherSession) {
         if (instance != null) {
             return;
         }
@@ -74,6 +78,7 @@ public final class LauncherAccountImport {
             providerDAO,
             accountDAO,
             accountManager,
+            sessionBridge,
             launcherSession);
         instance = created;
         FMLCommonHandler.instance()
@@ -207,7 +212,13 @@ public final class LauncherAccountImport {
                 return;
             }
 
-            pendingImport = new Candidate(provider.getName(), profileUuid, username, token);
+            Candidate candidate = new Candidate(provider.getName(), profileUuid, username, token);
+            if (LauncherImportConfig.importWithoutAsking) {
+                WawelAuth.debug("[launcher-import] importing '" + username + "' without asking");
+                createImportedAccount(candidate);
+                return;
+            }
+            pendingImport = candidate;
             WawelAuth.debug("[launcher-import] pending import created for '" + username + "'");
         } catch (Exception e) {
             WawelAuth.LOG.warn("Failed to inspect launcher session: {}", e.getMessage());
@@ -248,6 +259,7 @@ public final class LauncherAccountImport {
             long id = accountDAO.create(account);
             account.setId(id);
             accountManager.cacheStatus(id, AccountStatus.VALID);
+            sessionBridge.setDefaultAccountId(id);
 
             WawelAuth.LOG
                 .info("Imported launcher session as {} account: {}", provider.getName(), candidate.getUsername());
@@ -257,6 +269,8 @@ public final class LauncherAccountImport {
     }
 
     private void resyncImportedAccount(ClientAccount existing, String token, String username) {
+        // Servers without a bound account join with the account the game was started with.
+        sessionBridge.setDefaultAccountId(existing.getId());
         accountManager.withTokenLock(existing.getId(), () -> {
             ClientAccount account = accountDAO.findById(existing.getId());
             if (account == null) {

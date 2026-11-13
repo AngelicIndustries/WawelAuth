@@ -65,6 +65,7 @@ public class SessionBridge {
     private volatile ClientAccount activeAccount;
     private volatile ClientProvider activeProvider;
     private volatile String lastActivationError;
+    private volatile long defaultAccountId = -1L;
     private volatile List<ClientProvider> trustedProviders = Collections.emptyList();
     private volatile List<PublicKey> trustedKeys = Collections.emptyList();
     private final ConcurrentHashMap<String, GameProfile> profileCache = new ConcurrentHashMap<>();
@@ -253,31 +254,8 @@ public class SessionBridge {
      * Returns account id if exactly one matches, -1 otherwise.
      */
     public long findSingleMatchingAccountId(ServerCapabilities capabilities) {
-        if (capabilities == null) return -1L;
-
-        String acceptedFingerprint = normalizeFingerprint(capabilities.getLocalAuthPublicKeyFingerprint());
-
-        Set<String> acceptedAuthUrls = new HashSet<>();
-        for (String url : capabilities.getAcceptedAuthServerUrls()) {
-            String normalized = WawelPingPayload.normalizeUrl(url);
-            if (normalized != null) {
-                acceptedAuthUrls.add(normalized);
-            }
-        }
-
-        Set<String> acceptedProviderNames = new HashSet<>();
-        for (String providerName : capabilities.getAcceptedProviderNames()) {
-            if (providerName != null && !providerName.trim()
-                .isEmpty()) {
-                acceptedProviderNames.add(
-                    providerName.trim()
-                        .toLowerCase());
-            }
-        }
-
-        if (acceptedFingerprint == null && acceptedAuthUrls.isEmpty() && acceptedProviderNames.isEmpty()) {
-            return -1L;
-        }
+        AcceptedAccounts accepted = AcceptedAccounts.of(capabilities);
+        if (accepted == null) return -1L;
 
         long selectedId = -1L;
         int matches = 0;
@@ -289,29 +267,7 @@ public class SessionBridge {
             }
 
             ClientProvider provider = providerDAO.findByName(account.getProviderName());
-            if (provider == null) {
-                continue;
-            }
-
-            boolean matched = false;
-            String providerAuthUrl = WawelPingPayload.normalizeUrl(provider.getAuthServerUrl());
-            String providerFingerprint = normalizeFingerprint(provider.getPublicKeyFingerprint());
-
-            if (acceptedFingerprint != null && acceptedFingerprint.equals(providerFingerprint)) {
-                matched = true;
-            } else if (providerAuthUrl != null && acceptedAuthUrls.contains(providerAuthUrl)) {
-                matched = true;
-            } else if (!acceptedProviderNames.isEmpty()) {
-                // Compat for older payloads that only have names
-                String providerName = provider.getName();
-                if (providerName != null && acceptedProviderNames.contains(
-                    providerName.trim()
-                        .toLowerCase())) {
-                    matched = true;
-                }
-            }
-
-            if (!matched) {
+            if (provider == null || !accepted.accepts(provider)) {
                 continue;
             }
 
@@ -324,6 +280,91 @@ public class SessionBridge {
         }
 
         return matches == 1 ? selectedId : -1L;
+    }
+
+    /**
+     * Sets the account to join with on servers that have none bound, such as the one the game was started with.
+     * -1 for none.
+     */
+    public void setDefaultAccountId(long accountId) {
+        this.defaultAccountId = accountId;
+    }
+
+    /**
+     * The account for a server with none bound: the default account when the server accepts it or doesn't say what
+     * it accepts (a server without Wawel Auth), otherwise the only account the server accepts. -1 when there's none.
+     */
+    public long findAccountForUnboundServer(ServerCapabilities capabilities) {
+        long defaultId = this.defaultAccountId;
+        ClientAccount account = defaultId < 0 ? null : accountDAO.findById(defaultId);
+        ClientProvider provider = account == null || account.getStatus() == AccountStatus.EXPIRED ? null
+            : providerDAO.findByName(account.getProviderName());
+        if (provider != null) {
+            AcceptedAccounts accepted = AcceptedAccounts.of(capabilities);
+            if (accepted == null || accepted.accepts(provider)) {
+                return defaultId;
+            }
+        }
+        return findSingleMatchingAccountId(capabilities);
+    }
+
+    /** The accounts a server says it accepts, by local auth key, auth server or provider name. */
+    private static final class AcceptedAccounts {
+
+        private final String fingerprint;
+        private final Set<String> authUrls;
+        private final Set<String> providerNames;
+
+        private AcceptedAccounts(String fingerprint, Set<String> authUrls, Set<String> providerNames) {
+            this.fingerprint = fingerprint;
+            this.authUrls = authUrls;
+            this.providerNames = providerNames;
+        }
+
+        /** Null when the server says nothing about it. */
+        static AcceptedAccounts of(ServerCapabilities capabilities) {
+            if (capabilities == null) return null;
+
+            String fingerprint = normalizeFingerprint(capabilities.getLocalAuthPublicKeyFingerprint());
+
+            Set<String> authUrls = new HashSet<>();
+            for (String url : capabilities.getAcceptedAuthServerUrls()) {
+                String normalized = WawelPingPayload.normalizeUrl(url);
+                if (normalized != null) {
+                    authUrls.add(normalized);
+                }
+            }
+
+            Set<String> providerNames = new HashSet<>();
+            for (String providerName : capabilities.getAcceptedProviderNames()) {
+                if (providerName != null && !providerName.trim()
+                    .isEmpty()) {
+                    providerNames.add(
+                        providerName.trim()
+                            .toLowerCase());
+                }
+            }
+
+            if (fingerprint == null && authUrls.isEmpty() && providerNames.isEmpty()) {
+                return null;
+            }
+            return new AcceptedAccounts(fingerprint, authUrls, providerNames);
+        }
+
+        boolean accepts(ClientProvider provider) {
+            if (fingerprint != null && fingerprint.equals(normalizeFingerprint(provider.getPublicKeyFingerprint()))) {
+                return true;
+            }
+            String authUrl = WawelPingPayload.normalizeUrl(provider.getAuthServerUrl());
+            if (authUrl != null && authUrls.contains(authUrl)) {
+                return true;
+            }
+            // Compat for older payloads that only have names
+            String name = provider.getName();
+            return name != null && providerNames.contains(
+                name.trim()
+                    .toLowerCase());
+        }
     }
 
     // =========================================================================

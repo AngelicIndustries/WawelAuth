@@ -11,8 +11,10 @@ public final class ClientStartupExtensions {
 
     private ClientStartupExtensions() {}
 
+    public static void preInit() {}
+
     public static void start(YggdrasilHttpClient httpClient, ClientProviderDAO providerDAO, ClientAccountDAO accountDAO,
-        AccountManager accountManager) {}
+        AccountManager accountManager, SessionBridge sessionBridge) {}
 
     public static void stop() {}
 }

@@ -75,7 +75,7 @@ public class WawelClient {
 
         // Session bridge
         sessionBridge = new SessionBridge(httpClient, providerDAO, accountDAO, accountManager);
-        ClientStartupExtensions.start(httpClient, providerDAO, accountDAO, accountManager);
+        ClientStartupExtensions.start(httpClient, providerDAO, accountDAO, accountManager, sessionBridge);
 
         // Connection provider cache
         connectionProviderCache = new ConnectionProviderCache();

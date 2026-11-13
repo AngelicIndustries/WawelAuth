@@ -19,6 +19,7 @@ import industries.angelic.wawelauth.client.render.animatedcape.AnimatedCapeClien
 import industries.angelic.wawelauth.client.skin.SkinSnapshots;
 import industries.angelic.wawelauth.client.skin.sync.ClientSkinSync;
 import industries.angelic.wawelauth.compat.ssb.SsbSlim;
+import industries.angelic.wawelauth.wawelclient.ClientStartupExtensions;
 import industries.angelic.wawelauth.wawelclient.WawelClient;
 import industries.angelic.wawelauth.wawelclient.WawelPingClientHooks;
 import industries.angelic.wawelauth.wawelcore.config.LocalConfig;
@@ -28,6 +29,7 @@ public class ClientProxy extends CommonProxy {
     @Override
     public void preInit(FMLPreInitializationEvent event) {
         super.preInit(event);
+        ClientStartupExtensions.preInit();
     }
 
     @Override

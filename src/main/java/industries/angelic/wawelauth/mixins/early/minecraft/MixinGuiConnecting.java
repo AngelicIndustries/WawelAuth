@@ -45,14 +45,14 @@ public class MixinGuiConnecting {
         ServerCapabilities capabilities = ext.getWawelCapabilities();
         long accountId = ext.getWawelAccountId();
         if (accountId < 0) {
-            // No persisted binding: attempt one-shot in-memory auto-pick
-            // from live ping capabilities. Never writes to ServerData/NBT.
-            long autoSelected = bridge.findSingleMatchingAccountId(capabilities);
+            // No persisted binding: attempt one-shot in-memory auto-pick (the default account, or the only
+            // one the server accepts) from live ping capabilities. Never writes to ServerData/NBT.
+            long autoSelected = bridge.findAccountForUnboundServer(capabilities);
             if (autoSelected >= 0) {
                 bridge.activateAccount(autoSelected);
                 bridge.applyServerCapabilities(capabilities);
                 WawelAuth.debug(
-                    "Auto-selected single matching account " + autoSelected
+                    "Auto-selected account " + autoSelected
                         + " for server "
                         + serverData.serverIP
                         + " (non-persistent)");
