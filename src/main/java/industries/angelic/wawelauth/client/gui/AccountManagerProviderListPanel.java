@@ -231,8 +231,21 @@ final class AccountManagerProviderListPanel {
                 selectProvider.accept(connectedProvider);
                 rebuild();
                 return;
-            } else if (!providers.isEmpty()) {
-                selectProvider.accept(providers.get(0));
+            }
+            // Open on the first provider that has an account, local ones last, else on the first provider.
+            ClientProvider initial = firstWithAccounts(client, providers);
+            if (initial == null && !localProviders.isEmpty()) {
+                localProviders.sort(byDisplayName);
+                initial = firstWithAccounts(client, localProviders);
+                if (initial != null) {
+                    showingLocal = true;
+                }
+            }
+            if (initial == null && !providers.isEmpty()) {
+                initial = providers.get(0);
+            }
+            if (initial != null) {
+                selectProvider.accept(initial);
                 rebuild();
                 return;
             } else {
@@ -358,6 +371,17 @@ final class AccountManagerProviderListPanel {
 
     private static boolean isLocalProvider(ClientProvider provider) {
         return provider != null && provider.getType() == ProviderType.CUSTOM && !provider.isManualEntry();
+    }
+
+    private static ClientProvider firstWithAccounts(WawelClient client, List<ClientProvider> providers) {
+        for (ClientProvider provider : providers) {
+            if (!client.getAccountManager()
+                .listAccounts(provider.getName())
+                .isEmpty()) {
+                return provider;
+            }
+        }
+        return null;
     }
 
     private ClientProvider resolveConnectedProvider(WawelClient client) {
