@@ -372,6 +372,12 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
 
     private PlayerPreviewEntity previewFrontEntity;
     private PlayerPreviewEntity previewBackEntity;
+    /**
+     * The selected account whose preview waits for the screen's first frame. The first preview player of a session
+     * loads every mod's player classes, which can hold up opening the screen by a few hundred milliseconds.
+     */
+    private ClientAccount pendingPreviewAccount;
+    private boolean firstFrameDrawn;
     private WorldClient savedWorld;
     private EntityClientPlayerMP savedPlayer;
     private EntityLivingBase savedRenderViewEntity;
@@ -1275,17 +1281,47 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
         clearTextureSelection();
         state.textureUploadStatus = "";
         if (account != null && account.getProfileUuid() != null) {
-            GameProfile profile = new GameProfile(account.getProfileUuid(), account.getProfileName());
-            previewFrontEntity = new PlayerPreviewEntity(profile);
-            previewBackEntity = new PlayerPreviewEntity(profile);
-            applyCapePreviewMode();
-            loadSkinForAccount(account);
+            if (!firstFrameDrawn) {
+                clearPreview();
+                pendingPreviewAccount = account;
+                return;
+            }
+            showPreview(account);
         } else {
             clearPreview();
         }
     }
 
+    private void showPreview(ClientAccount account) {
+        pendingPreviewAccount = null;
+        GameProfile profile = new GameProfile(account.getProfileUuid(), account.getProfileName());
+        previewFrontEntity = new PlayerPreviewEntity(profile);
+        previewBackEntity = new PlayerPreviewEntity(profile);
+        applyCapePreviewMode();
+        loadSkinForAccount(account);
+    }
+
+    @Override
+    public void drawScreen() {
+        super.drawScreen();
+        firstFrameDrawn = true;
+    }
+
+    @Override
+    public void onFrameUpdate() {
+        super.onFrameUpdate();
+        ClientAccount pending = pendingPreviewAccount;
+        ClientAccount selected = state.selectedAccount;
+        if (pending != null && firstFrameDrawn) {
+            pendingPreviewAccount = null;
+            if (selected != null && selected.getId() == pending.getId() && selected.getProfileUuid() != null) {
+                showPreview(selected);
+            }
+        }
+    }
+
     private void clearPreview() {
+        pendingPreviewAccount = null;
         if (previewFrontEntity != null) {
             previewFrontEntity.clearTextures();
         }
