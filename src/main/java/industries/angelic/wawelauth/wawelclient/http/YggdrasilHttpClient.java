@@ -58,6 +58,11 @@ public class YggdrasilHttpClient {
 
     public JsonObject postJson(ClientProvider provider, String url, JsonObject body)
         throws IOException, YggdrasilRequestException {
+        return JoinAddressFallback.send(url, u -> postJsonAt(provider, u, body));
+    }
+
+    private JsonObject postJsonAt(ClientProvider provider, String url, JsonObject body)
+        throws IOException, YggdrasilRequestException {
         byte[] bodyBytes = body.toString()
             .getBytes(StandardCharsets.UTF_8);
 
@@ -99,6 +104,10 @@ public class YggdrasilHttpClient {
     }
 
     public JsonObject getJson(ClientProvider provider, String url) throws IOException, YggdrasilRequestException {
+        return JoinAddressFallback.send(url, u -> getJsonAt(provider, u));
+    }
+
+    private JsonObject getJsonAt(ClientProvider provider, String url) throws IOException, YggdrasilRequestException {
         ProviderProxySettings settings = settingsFor(provider);
         if (jdkProxyHttpClient.supports(settings)) {
             beginRequest("GET", provider, url, settings, "jdk-http-client");
@@ -175,6 +184,11 @@ public class YggdrasilHttpClient {
 
     public JsonObject deleteWithAuth(ClientProvider provider, String url, String bearerToken)
         throws IOException, YggdrasilRequestException {
+        return JoinAddressFallback.send(url, u -> deleteWithAuthAt(provider, u, bearerToken));
+    }
+
+    private JsonObject deleteWithAuthAt(ClientProvider provider, String url, String bearerToken)
+        throws IOException, YggdrasilRequestException {
         ProviderProxySettings settings = settingsFor(provider);
         if (jdkProxyHttpClient.supports(settings)) {
             beginRequest("DELETE", provider, url, settings, "jdk-http-client");
@@ -197,6 +211,14 @@ public class YggdrasilHttpClient {
     }
 
     private JsonObject sendMultipart(String method, ClientProvider provider, String url, String bearerToken,
+        String fileField, File file, String contentType, Map<String, String> textFields)
+        throws IOException, YggdrasilRequestException {
+        return JoinAddressFallback.send(
+            url,
+            u -> sendMultipartAt(method, provider, u, bearerToken, fileField, file, contentType, textFields));
+    }
+
+    private JsonObject sendMultipartAt(String method, ClientProvider provider, String url, String bearerToken,
         String fileField, File file, String contentType, Map<String, String> textFields)
         throws IOException, YggdrasilRequestException {
         if (file == null || !file.isFile()) {

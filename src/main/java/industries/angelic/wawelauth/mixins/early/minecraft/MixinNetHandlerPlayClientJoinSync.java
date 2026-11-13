@@ -25,6 +25,7 @@ import industries.angelic.wawelauth.wawelclient.ServerCapabilities;
 import industries.angelic.wawelauth.wawelclient.SessionBridge;
 import industries.angelic.wawelauth.wawelclient.WawelClient;
 import industries.angelic.wawelauth.wawelclient.data.ClientProvider;
+import industries.angelic.wawelauth.wawelclient.http.JoinAddressFallback;
 import industries.angelic.wawelauth.wawelcore.ping.PlayerProviderSyncPayload;
 import industries.angelic.wawelauth.wawelcore.ping.WawelCapabilitySyncPayload;
 import industries.angelic.wawelauth.wawelcore.skin.SkinPartFlags;
@@ -69,6 +70,9 @@ public class MixinNetHandlerPlayClientJoinSync {
         if (serverData instanceof IServerDataExt ext) {
             ext.setWawelCapabilities(capabilities);
             ServerBindingPersistence.persistLocalAuthMetadata(serverData, capabilities);
+        }
+        if (serverData != null && capabilities.isLocalAuthSupported()) {
+            JoinAddressFallback.register(capabilities.getLocalAuthApiRoot(), serverData.serverIP);
         }
 
         WawelClient client = WawelClient.instance();

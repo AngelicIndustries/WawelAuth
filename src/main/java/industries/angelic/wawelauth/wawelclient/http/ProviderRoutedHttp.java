@@ -76,6 +76,13 @@ public final class ProviderRoutedHttp {
 
     public static byte[] downloadBytes(String url, ProviderProxySettings settings, String providerName,
         int connectTimeoutMs, int readTimeoutMs, String userAgent, String purpose) throws IOException {
+        return JoinAddressFallback.send(
+            url,
+            u -> downloadBytesAt(u, settings, providerName, connectTimeoutMs, readTimeoutMs, userAgent, purpose));
+    }
+
+    private static byte[] downloadBytesAt(String url, ProviderProxySettings settings, String providerName,
+        int connectTimeoutMs, int readTimeoutMs, String userAgent, String purpose) throws IOException {
         AddressDiagnostics.checkRequest(providerName != null ? purpose + " from '" + providerName + "'" : purpose, url);
         JdkProxyHttpClient jdkProxyHttpClient = new JdkProxyHttpClient(
             connectTimeoutMs,

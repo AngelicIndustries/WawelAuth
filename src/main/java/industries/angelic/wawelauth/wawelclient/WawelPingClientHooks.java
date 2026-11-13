@@ -6,6 +6,7 @@ import com.google.gson.JsonElement;
 
 import industries.angelic.angellib.services.S00PacketServerInfoModifyService;
 import industries.angelic.wawelauth.WawelAuth;
+import industries.angelic.wawelauth.wawelclient.http.JoinAddressFallback;
 
 /**
  * Client-side ping deserialization. Capabilities are runtime-only; changes to
@@ -28,6 +29,9 @@ public final class WawelPingClientHooks {
                 ? ServerCapabilities.fromPayload(wawelElement.getAsJsonObject(), now)
                 : ServerCapabilities.unadvertised(now);
             String pingAddress = serverData.serverIP;
+            if (capabilities.isLocalAuthSupported()) {
+                JoinAddressFallback.register(capabilities.getLocalAuthApiRoot(), pingAddress);
+            }
             // Status packets have priority in 1.7.10: this callback runs on Netty, not the UI thread.
             Minecraft.getMinecraft()
                 .func_152344_a(() -> {
