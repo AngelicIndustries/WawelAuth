@@ -3,6 +3,7 @@ package industries.angelic.wawelauth.mixins.early.authlib;
 import java.nio.charset.StandardCharsets;
 import java.security.PublicKey;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -15,18 +16,23 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import com.google.common.collect.Iterables;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 import com.mojang.authlib.GameProfile;
+import com.mojang.authlib.minecraft.InsecureTextureException;
 import com.mojang.authlib.minecraft.MinecraftProfileTexture;
 import com.mojang.authlib.properties.Property;
 import com.mojang.authlib.yggdrasil.YggdrasilMinecraftSessionService;
+import com.mojang.authlib.yggdrasil.response.MinecraftTexturesPayload;
 
 import industries.angelic.wawelauth.WawelAuth;
 import industries.angelic.wawelauth.client.render.animatedcape.AnimatedCapeTexture;
 import industries.angelic.wawelauth.client.render.animatedcape.AnimatedCapeTracker;
 import industries.angelic.wawelauth.compat.authlibinjector.AuthlibInjectorCompat;
+import industries.angelic.wawelauth.compat.elyauthlib.ElyAuthlibCompat;
 import industries.angelic.wawelauth.wawelclient.WawelClient;
 import industries.angelic.wawelauth.wawelclient.data.ClientProvider;
 import industries.angelic.wawelauth.wawelclient.http.ProviderRoutedHttp;
@@ -37,7 +43,7 @@ import industries.angelic.wawelauth.wawelcore.crypto.PropertySigner;
  * remap = false because authlib is not obfuscated.
  *
  * Hooks: signature verification, domain whitelisting, profile fetching,
- * animated cape detection.
+ * animated cape detection, and texture reading under Ely.by's authlib.
  */
 @Mixin(value = YggdrasilMinecraftSessionService.class, remap = false)
 public class MixinYggdrasilMinecraftSessionService {
@@ -56,7 +62,7 @@ public class MixinYggdrasilMinecraftSessionService {
         }
 
         // Check vanilla Mojang key first if allowed
-        if (client.getSessionBridge()
+        if (mojangKey != null && client.getSessionBridge()
             .isVanillaTextureTrustAllowed() && wawelauth$verifyProperty(property, mojangKey)) {
             return true;
         }
@@ -142,13 +148,79 @@ public class MixinYggdrasilMinecraftSessionService {
             .putAll(filled.getProperties());
     }
 
+    /**
+     * Ely.by's authlib hands this method to its own texture service, which checks no signature or skin domain and
+     * prefers Ely.by's skin for the player's name over the textures the profile carries. With Wawel Auth running,
+     * read the textures as the vanilla authlib does, with the checks above.
+     */
+    @Inject(method = "getTextures", at = @At("HEAD"), cancellable = true)
+    private void wawelauth$readTexturesUnderElyAuthlib(GameProfile profile, boolean requireSecure,
+        CallbackInfoReturnable<Map<MinecraftProfileTexture.Type, MinecraftProfileTexture>> cir) {
+        if (!ElyAuthlibCompat.isActive()) return;
+        WawelClient client = WawelClient.instance();
+        if (client == null) return;
+
+        Property property = Iterables.getFirst(
+            profile.getProperties()
+                .get("textures"),
+            null);
+        // Without textures or a provider, vanilla shows the default skin; Ely.by's skin for the name only adds to it.
+        if (property == null && client.getSessionBridge()
+            .getActiveProviderContext() == null) return;
+
+        Map<MinecraftProfileTexture.Type, MinecraftProfileTexture> textures = wawelauth$vanillaTextures(
+            property,
+            profile,
+            requireSecure);
+        wawelauth$trackAnimatedCape(profile, textures);
+        cir.setReturnValue(textures);
+    }
+
+    /** The vanilla authlib's getTextures, with the redirects above in place of its checks. */
+    private Map<MinecraftProfileTexture.Type, MinecraftProfileTexture> wawelauth$vanillaTextures(Property property,
+        GameProfile profile, boolean requireSecure) {
+        if (property == null) return new HashMap<>();
+        if (requireSecure) {
+            if (!property.hasSignature()) {
+                WawelAuth.LOG.error("Signature is missing from textures payload");
+                throw new InsecureTextureException("Signature is missing from textures payload");
+            }
+            if (!wawelauth$verifyScopedKey(property, ElyAuthlibCompat.mojangKey(), profile, requireSecure)) {
+                WawelAuth.LOG.error("Textures payload has been tampered with (signature invalid)");
+                throw new InsecureTextureException("Textures payload has been tampered with (signature invalid)");
+            }
+        }
+
+        MinecraftTexturesPayload payload;
+        try {
+            payload = ElyAuthlibCompat.decodePayload(property.getValue());
+        } catch (JsonParseException e) {
+            WawelAuth.LOG.error("Could not decode textures payload", e);
+            return new HashMap<>();
+        }
+        if (payload == null || payload.getTextures() == null) return new HashMap<>();
+
+        for (MinecraftProfileTexture texture : payload.getTextures()
+            .values()) {
+            if (!wawelauth$checkScopedDomains(texture.getUrl(), profile, requireSecure)) {
+                WawelAuth.LOG.error("Textures payload has been tampered with (non-whitelisted domain)");
+                return new HashMap<>();
+            }
+        }
+        return payload.getTextures();
+    }
+
     /** Detect animated cape metadata from getTextures() result. */
     @Inject(method = "getTextures", at = @At("RETURN"))
     private void wawelauth$detectAnimatedCape(GameProfile profile, boolean requireSecure,
         CallbackInfoReturnable<Map<MinecraftProfileTexture.Type, MinecraftProfileTexture>> cir) {
+        wawelauth$trackAnimatedCape(profile, cir.getReturnValue());
+    }
+
+    private void wawelauth$trackAnimatedCape(GameProfile profile,
+        Map<MinecraftProfileTexture.Type, MinecraftProfileTexture> result) {
         if (profile == null || profile.getId() == null) return;
 
-        Map<MinecraftProfileTexture.Type, MinecraftProfileTexture> result = cir.getReturnValue();
         if (result == null || !result.containsKey(MinecraftProfileTexture.Type.CAPE)) return;
 
         UUID uuid = profile.getId();
