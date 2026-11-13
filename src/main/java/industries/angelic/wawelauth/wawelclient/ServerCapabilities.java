@@ -9,6 +9,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import industries.angelic.wawelauth.wawelcore.ping.WawelPingPayload;
+import industries.angelic.wawelauth.wawelcore.util.AddressDiagnostics;
 
 /**
  * Runtime-only ping capability snapshot for one server entry.
@@ -128,6 +129,12 @@ public final class ServerCapabilities {
         List<String> localSkinDomains = toUnmodifiableCopy(
             WawelPingPayload.parseStringArray(payload, WawelPingPayload.KEY_LOCAL_AUTH_SKIN_DOMAINS));
         List<AcceptedProviderDescriptor> acceptedProviders = parseAcceptedProviders(payload);
+
+        // A server's publicBaseUrl reaches clients here; say so when Java will refuse it.
+        AddressDiagnostics.warnIfRefused("A server's advertised local auth address", localApiRoot);
+        for (String url : urls) {
+            AddressDiagnostics.warnIfRefused("A server's advertised auth server", url);
+        }
 
         boolean localDescriptorComplete = localApiRoot != null && localFingerprint != null;
         if (!localDescriptorComplete) {

@@ -22,6 +22,7 @@ import industries.angelic.wawelauth.wawelclient.storage.ClientProviderDAO;
 import industries.angelic.wawelauth.wawelclient.storage.sqlite.ClientDatabase;
 import industries.angelic.wawelauth.wawelclient.storage.sqlite.SqliteClientAccountDAO;
 import industries.angelic.wawelauth.wawelclient.storage.sqlite.SqliteClientProviderDAO;
+import industries.angelic.wawelauth.wawelcore.util.AddressDiagnostics;
 
 /**
  * Client module singleton. Owns the SQLite DB, provider registry, account manager,
@@ -91,6 +92,8 @@ public class WawelClient {
         if (SingleplayerAccountPersistence.clearMissingSelection(accountManager)) {
             WawelAuth.LOG.info("Cleared stale singleplayer account selection on startup");
         }
+
+        warnAboutRefusedAddresses(providerDAO);
 
         WawelAuth.LOG.info(
             "WawelAuth client module started. {} accounts across {} providers.",
@@ -308,4 +311,22 @@ public class WawelClient {
     public ClientProvider getMojangProvider() {
         return providerDAO.findByName(BuiltinProviders.MOJANG_PROVIDER_NAME);
     }
+
+    /**
+     * Warns about provider addresses Java refuses with "illegal IPv4 address", naming the provider, not the address.
+     */
+    private static void warnAboutRefusedAddresses(ClientProviderDAO providerDAO) {
+        boolean found = false;
+        for (ClientProvider provider : providerDAO.listAll()) {
+            String source = "Provider '" + provider.getName() + "' ";
+            found |= AddressDiagnostics.warnIfRefused(source + "API root", provider.getApiRoot());
+            found |= AddressDiagnostics.warnIfRefused(source + "auth server", provider.getAuthServerUrl());
+            found |= AddressDiagnostics.warnIfRefused(source + "session server", provider.getSessionServerUrl());
+            found |= AddressDiagnostics.warnIfRefused(source + "services", provider.getServicesUrl());
+        }
+        if (found) {
+            AddressDiagnostics.logEnvironment();
+        }
+    }
+
 }

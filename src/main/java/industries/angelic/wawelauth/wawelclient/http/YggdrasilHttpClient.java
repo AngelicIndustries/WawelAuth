@@ -18,6 +18,7 @@ import com.google.gson.JsonParser;
 import industries.angelic.wawelauth.WawelAuth;
 import industries.angelic.wawelauth.wawelclient.data.ClientProvider;
 import industries.angelic.wawelauth.wawelclient.data.ProviderProxySettings;
+import industries.angelic.wawelauth.wawelcore.util.AddressDiagnostics;
 
 /**
  * Simple HTTP client for making Yggdrasil API requests to remote auth servers.
@@ -62,10 +63,10 @@ public class YggdrasilHttpClient {
 
         ProviderProxySettings settings = settingsFor(provider);
         if (jdkProxyHttpClient.supports(settings)) {
-            debugRequest("POST", provider, url, settings, "jdk-http-client");
+            beginRequest("POST", provider, url, settings, "jdk-http-client");
             return jdkProxyHttpClient.postJson(url, body, settings);
         }
-        debugRequest("POST", provider, url, settings, "urlconnection");
+        beginRequest("POST", provider, url, settings, "urlconnection");
         try (ProviderProxySupport.AuthContext ignored = ProviderProxySupport.enterAuthContext(settings)) {
             HttpURLConnection conn = openConnection(url, settings);
             try {
@@ -100,10 +101,10 @@ public class YggdrasilHttpClient {
     public JsonObject getJson(ClientProvider provider, String url) throws IOException, YggdrasilRequestException {
         ProviderProxySettings settings = settingsFor(provider);
         if (jdkProxyHttpClient.supports(settings)) {
-            debugRequest("GET", provider, url, settings, "jdk-http-client");
+            beginRequest("GET", provider, url, settings, "jdk-http-client");
             return jdkProxyHttpClient.getJson(url, settings);
         }
-        debugRequest("GET", provider, url, settings, "urlconnection");
+        beginRequest("GET", provider, url, settings, "urlconnection");
         try (ProviderProxySupport.AuthContext ignored = ProviderProxySupport.enterAuthContext(settings)) {
             HttpURLConnection conn = openConnection(url, settings);
             try {
@@ -176,10 +177,10 @@ public class YggdrasilHttpClient {
         throws IOException, YggdrasilRequestException {
         ProviderProxySettings settings = settingsFor(provider);
         if (jdkProxyHttpClient.supports(settings)) {
-            debugRequest("DELETE", provider, url, settings, "jdk-http-client");
+            beginRequest("DELETE", provider, url, settings, "jdk-http-client");
             return jdkProxyHttpClient.deleteWithAuth(url, bearerToken, settings);
         }
-        debugRequest("DELETE", provider, url, settings, "urlconnection");
+        beginRequest("DELETE", provider, url, settings, "urlconnection");
         try (ProviderProxySupport.AuthContext ignored = ProviderProxySupport.enterAuthContext(settings)) {
             HttpURLConnection conn = openConnection(url, settings);
             try {
@@ -209,11 +210,11 @@ public class YggdrasilHttpClient {
             .replace("-", "");
         ProviderProxySettings settings = settingsFor(provider);
         if (jdkProxyHttpClient.supports(settings)) {
-            debugRequest(method, provider, url, settings, "jdk-http-client");
+            beginRequest(method, provider, url, settings, "jdk-http-client");
             return jdkProxyHttpClient
                 .sendMultipart(method, url, bearerToken, fileField, file, contentType, textFields, settings);
         }
-        debugRequest(method, provider, url, settings, "urlconnection");
+        beginRequest(method, provider, url, settings, "urlconnection");
         try (ProviderProxySupport.AuthContext ignored = ProviderProxySupport.enterAuthContext(settings)) {
             HttpURLConnection conn = openConnection(url, settings);
             try {
@@ -266,7 +267,7 @@ public class YggdrasilHttpClient {
 
     public String resolveApiRoot(String userUrl, ProviderProxySettings settings) throws IOException {
         if (jdkProxyHttpClient.supports(settings)) {
-            debugRequest("GET", null, userUrl, settings, "jdk-http-client");
+            beginRequest("GET", null, userUrl, settings, "jdk-http-client");
             return jdkProxyHttpClient.resolveApiRoot(userUrl, settings);
         }
         // Only ensure scheme: do NOT strip trailing slash yet, as URI.resolve()
@@ -315,10 +316,10 @@ public class YggdrasilHttpClient {
 
     public int probeReachability(String url, ProviderProxySettings settings) throws IOException {
         if (jdkProxyHttpClient.supports(settings)) {
-            debugRequest("PROBE", null, url, settings, "jdk-http-client");
+            beginRequest("PROBE", null, url, settings, "jdk-http-client");
             return jdkProxyHttpClient.probeReachability(url, settings);
         }
-        debugRequest("PROBE", null, url, settings, "urlconnection");
+        beginRequest("PROBE", null, url, settings, "urlconnection");
         try (ProviderProxySupport.AuthContext ignored = ProviderProxySupport.enterAuthContext(settings)) {
             HttpURLConnection conn = openConnection(url, settings);
             try {
@@ -339,8 +340,10 @@ public class YggdrasilHttpClient {
         return provider != null ? provider.getProxySettings() : null;
     }
 
-    private static void debugRequest(String method, ClientProvider provider, String url, ProviderProxySettings settings,
+    /** Refuses addresses Java would refuse anyway, with the reason, then logs the request in debug mode. */
+    private static void beginRequest(String method, ClientProvider provider, String url, ProviderProxySettings settings,
         String transport) {
+        AddressDiagnostics.checkRequest(provider != null ? "Provider '" + provider.getName() + "'" : "Request", url);
         WawelAuth.debug(
             "HTTP " + method
                 + " "

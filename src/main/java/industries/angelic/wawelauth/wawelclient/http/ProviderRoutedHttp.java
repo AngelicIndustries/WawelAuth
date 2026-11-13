@@ -9,6 +9,7 @@ import java.net.URL;
 import industries.angelic.wawelauth.WawelAuth;
 import industries.angelic.wawelauth.wawelclient.data.ClientProvider;
 import industries.angelic.wawelauth.wawelclient.data.ProviderProxySettings;
+import industries.angelic.wawelauth.wawelcore.util.AddressDiagnostics;
 
 /**
  * Opens direct or provider-proxied connections for one explicitly chosen
@@ -75,6 +76,7 @@ public final class ProviderRoutedHttp {
 
     public static byte[] downloadBytes(String url, ProviderProxySettings settings, String providerName,
         int connectTimeoutMs, int readTimeoutMs, String userAgent, String purpose) throws IOException {
+        AddressDiagnostics.checkRequest(providerName != null ? purpose + " from '" + providerName + "'" : purpose, url);
         JdkProxyHttpClient jdkProxyHttpClient = new JdkProxyHttpClient(
             connectTimeoutMs,
             readTimeoutMs,

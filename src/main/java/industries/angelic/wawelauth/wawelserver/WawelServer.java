@@ -10,6 +10,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import industries.angelic.wawelauth.Config;
 import industries.angelic.wawelauth.WawelAuth;
+import industries.angelic.wawelauth.wawelcore.config.FallbackServer;
 import industries.angelic.wawelauth.wawelcore.config.ServerConfig;
 import industries.angelic.wawelauth.wawelcore.crypto.KeyManager;
 import industries.angelic.wawelauth.wawelcore.crypto.PropertySigner;
@@ -26,6 +27,7 @@ import industries.angelic.wawelauth.wawelcore.storage.sqlite.SqliteProfileDAO;
 import industries.angelic.wawelauth.wawelcore.storage.sqlite.SqliteTokenDAO;
 import industries.angelic.wawelauth.wawelcore.storage.sqlite.SqliteUserDAO;
 import industries.angelic.wawelauth.wawelcore.storage.sqlite.SqliteUserListProviderBindingDAO;
+import industries.angelic.wawelauth.wawelcore.util.AddressDiagnostics;
 import industries.angelic.wawelauth.wawelnet.HttpRouter;
 
 /**
@@ -81,6 +83,8 @@ public class WawelServer {
         // Database
         database = new SqliteDatabase(new File(stateDir, "wawelauth.db"));
         database.initialize();
+
+        warnAboutRefusedAddresses(config);
 
         // Discover fallback providers' public signing keys
         FallbackKeyDiscovery.discoverKeys(config);
@@ -247,4 +251,22 @@ public class WawelServer {
     public void runInTransaction(Runnable action) {
         database.runInTransaction(action);
     }
+
+    /**
+     * Warns about configured addresses Java refuses with "illegal IPv4 address", naming the setting, not the address.
+     */
+    private static void warnAboutRefusedAddresses(ServerConfig config) {
+        boolean found = AddressDiagnostics.warnIfRefused("server.json publicBaseUrl", config.getPublicBaseUrl());
+        for (FallbackServer fallback : config.getFallbackServers()) {
+            String source = "fallback-servers.json '" + fallback.getName() + "' ";
+            found |= AddressDiagnostics.warnIfRefused(source + "apiRoot", fallback.getApiRoot());
+            found |= AddressDiagnostics.warnIfRefused(source + "sessionServerUrl", fallback.getSessionServerUrl());
+            found |= AddressDiagnostics.warnIfRefused(source + "accountUrl", fallback.getAccountUrl());
+            found |= AddressDiagnostics.warnIfRefused(source + "servicesUrl", fallback.getServicesUrl());
+        }
+        if (found) {
+            AddressDiagnostics.logEnvironment();
+        }
+    }
+
 }
