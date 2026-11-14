@@ -42,9 +42,10 @@ public class MixinAbstractClientPlayer {
     @Mutable
     public static ResourceLocation locationStevePng;
 
+    /** The game's own default skin, in the layout players are drawn with. */
     @Inject(method = "<clinit>", at = @At("TAIL"))
     private static void wawelauth$useModernSteve(CallbackInfo ci) {
-        locationStevePng = new ResourceLocation("wawelauth", "textures/steve_64.png");
+        locationStevePng = WawelTextureResolver.getDefaultSkin();
     }
 
     /**

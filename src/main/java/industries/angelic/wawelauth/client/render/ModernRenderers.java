@@ -3,6 +3,7 @@ package industries.angelic.wawelauth.client.render;
 import java.awt.image.BufferedImage;
 
 import cpw.mods.fml.common.Loader;
+import cpw.mods.fml.common.LoaderState;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import industries.angelic.wawelauth.compat.ears.EarsCompat;
@@ -22,9 +23,18 @@ public final class ModernRenderers {
     public static boolean present() {
         Boolean known = present;
         if (known == null) {
-            known = Loader.isModLoaded("salamander") || Loader.isModLoaded("simpleskinbackport")
-                || EarsCompat.isRendererActive();
-            present = known;
+            try {
+                known = Loader.isModLoaded("salamander") || Loader.isModLoaded("simpleskinbackport")
+                    || EarsCompat.isRendererActive();
+                // Before FML has found the mods, the answer may still change.
+                if (Loader.instance()
+                    .hasReachedState(LoaderState.CONSTRUCTING)) {
+                    present = known;
+                }
+            } catch (RuntimeException | LinkageError e) {
+                // Outside a running game, as in tests, there is no mod loader to ask.
+                return false;
+            }
         }
         return known;
     }

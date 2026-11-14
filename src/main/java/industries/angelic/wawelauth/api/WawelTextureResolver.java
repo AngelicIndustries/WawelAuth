@@ -50,8 +50,12 @@ public class WawelTextureResolver {
     private static final ResourceLocation MODERN_STEVE = new ResourceLocation("wawelauth", "textures/steve_64.png");
     private static final ResourceLocation DEFAULT_CAPE = new ResourceLocation("wawelauth", "textures/capeFallback.png");
 
+    /**
+     * Steve in the layout players are drawn with: 64x64 with a mod that draws such skins, otherwise vanilla's 64x32,
+     * which is all vanilla's model reads.
+     */
     public static ResourceLocation getDefaultSkin() {
-        return MODERN_STEVE;
+        return ModernRenderers.present() ? MODERN_STEVE : LEGACY_STEVE;
     }
 
     public static ResourceLocation getLegacyDefaultSkin() {
