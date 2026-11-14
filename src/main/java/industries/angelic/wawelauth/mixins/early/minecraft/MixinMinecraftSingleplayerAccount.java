@@ -1,5 +1,7 @@
 package industries.angelic.wawelauth.mixins.early.minecraft;
 
+import java.io.File;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.WorldSettings;
 
@@ -9,6 +11,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import industries.angelic.wawelauth.WawelAuth;
+import industries.angelic.wawelauth.wawelclient.NewWorldAccount;
 import industries.angelic.wawelauth.wawelclient.SingleplayerAccountPersistence;
 import industries.angelic.wawelauth.wawelclient.WawelClient;
 import industries.angelic.wawelauth.wawelclient.WorldAuthSettings;
@@ -25,8 +28,10 @@ public class MixinMinecraftSingleplayerAccount {
             return;
         }
 
-        ClientAccount account = WorldAuthSettings
-            .account(WorldAuthSettings.worldDirectory(folderName), client.getAccountManager());
+        // A world created just now gets the account picked for it, in the folder it really launches in.
+        File worldDirectory = WorldAuthSettings.worldDirectory(folderName);
+        NewWorldAccount.bindIfCreating(worldDirectory, client.getAccountManager());
+        ClientAccount account = WorldAuthSettings.account(worldDirectory, client.getAccountManager());
         if (account == null) {
             account = SingleplayerAccountPersistence.resolveSelectedAccount(client.getAccountManager());
         }

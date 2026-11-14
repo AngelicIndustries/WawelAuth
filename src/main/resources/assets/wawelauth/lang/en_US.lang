@@ -14,6 +14,8 @@ wawelauth.gui.world_picker.title=Account for %s
 wawelauth.gui.world_picker.default=Default: %s
 wawelauth.gui.world_row.default=Default singleplayer account
 wawelauth.gui.world_row.click=Click to pick the account and LAN access
+wawelauth.gui.new_world.click=Click to pick the account for this world
+wawelauth.gui.new_world.title=Account for the new world
 
 wawelauth.gui.common.account=account
 wawelauth.gui.common.api_root=API Root: %s

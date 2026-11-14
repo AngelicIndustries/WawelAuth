@@ -164,6 +164,10 @@ public class Mixins extends AngelMixins {
             .phase(MixinUtil.Phase.EARLY)
             .side(MiscUtil.Side.CLIENT)
             .build();
+        registry.mixin("MixinGuiCreateWorld")
+            .phase(MixinUtil.Phase.EARLY)
+            .side(MiscUtil.Side.CLIENT)
+            .build();
         registry.mixin("MixinGuiScreenWorldRowClick")
             .phase(MixinUtil.Phase.EARLY)
             .side(MiscUtil.Side.CLIENT)

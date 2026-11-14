@@ -41,7 +41,6 @@ public final class WorldRowIcons {
     private static final int OFFSET_X = 219;
     /** Centered in the row's 32 pixels, as Cherished Worlds' star is. */
     private static final int OFFSET_Y = 10;
-    private static final float DEFAULT_HEAD_ALPHA = 0.55F;
     private static final int OUTLINE_COLOR = 0xFFFFFFFF;
     private static final long ACCOUNT_CACHE_MS = 2_000L;
 
@@ -87,21 +86,15 @@ public final class WorldRowIcons {
             RenderHelper.disableStandardItemLighting();
             GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
 
-            // Without any account, a faded default face still shows where to click.
-            drawFace(account != null ? account.account : null, headX, headY, own ? 1.0F : DEFAULT_HEAD_ALPHA);
-            if (hovered && own && GuiScreen.isShiftKeyDown()) {
-                Gui.drawRect(headX, headY, headX + HEAD_SIZE, headY + HEAD_SIZE, 0x55FF0000);
-            }
-            if (hovered) {
-                int left = headX - 1;
-                int top = headY - 1;
-                int right = headX + HEAD_SIZE + 1;
-                int bottom = headY + HEAD_SIZE + 1;
-                Gui.drawRect(left, top, right, top + 1, OUTLINE_COLOR);
-                Gui.drawRect(left, bottom - 1, right, bottom, OUTLINE_COLOR);
-                Gui.drawRect(left, top + 1, left + 1, bottom - 1, OUTLINE_COLOR);
-                Gui.drawRect(right - 1, top + 1, right, bottom - 1, OUTLINE_COLOR);
-            }
+            // Without any account, the default face still shows where to click.
+            drawAccountFace(
+                account != null ? account.account : null,
+                headX,
+                headY,
+                HEAD_SIZE,
+                1.0F,
+                hovered,
+                hovered && own && GuiScreen.isShiftKeyDown());
         } finally {
             GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
             GL11.glPopAttrib();
@@ -180,7 +173,12 @@ public final class WorldRowIcons {
         return cached.account;
     }
 
-    private static void drawFace(ClientAccount account, int x, int y, float alpha) {
+    /**
+     * An account's face as world rows and the world creation screen show it: the default face without an account, a
+     * white outline when hovered, and a red tint when a shift-click would drop it.
+     */
+    static void drawAccountFace(ClientAccount account, int x, int y, int size, float alpha, boolean hovered,
+        boolean dropping) {
         WawelClient client = WawelClient.instance();
         ResourceLocation skin = WawelTextureResolver.getDefaultSkin();
         if (client != null && account != null && account.getProfileUuid() != null) {
@@ -190,7 +188,20 @@ public final class WorldRowIcons {
                 .getSkin(account.getProfileUuid(), profileName, provider, false);
         }
         GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
-        WawelFaceRendererClient.drawFace(skin, x, y, HEAD_SIZE, HEAD_SIZE, alpha);
+        WawelFaceRendererClient.drawFace(skin, x, y, size, size, alpha);
+        if (dropping) {
+            Gui.drawRect(x, y, x + size, y + size, 0x55FF0000);
+        }
+        if (hovered) {
+            int left = x - 1;
+            int top = y - 1;
+            int right = x + size + 1;
+            int bottom = y + size + 1;
+            Gui.drawRect(left, top, right, top + 1, OUTLINE_COLOR);
+            Gui.drawRect(left, bottom - 1, right, bottom, OUTLINE_COLOR);
+            Gui.drawRect(left, top + 1, left + 1, bottom - 1, OUTLINE_COLOR);
+            Gui.drawRect(right - 1, top + 1, right, bottom - 1, OUTLINE_COLOR);
+        }
     }
 
     private static final class Cached {

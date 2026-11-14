@@ -45,6 +45,7 @@ import cpw.mods.fml.relauncher.SideOnly;
 import industries.angelic.angellib.util.GuiText;
 import industries.angelic.angellib.util.drop.GuiTransitionScheduler;
 import industries.angelic.wawelauth.wawelclient.IServerDataExt;
+import industries.angelic.wawelauth.wawelclient.NewWorldAccount;
 import industries.angelic.wawelauth.wawelclient.ProviderRegistry;
 import industries.angelic.wawelauth.wawelclient.ServerBindingPersistence;
 import industries.angelic.wawelauth.wawelclient.ServerCapabilities;
@@ -133,6 +134,11 @@ public class ServerAccountPickerScreen extends ParentAwareModularScreen {
         ClientGUI.open(new ServerAccountPickerScreen());
     }
 
+    /** Picks the account a world being created will be played with, before its folder exists. */
+    public static void openForNewWorld(String worldName) {
+        openForWorld(null, worldName);
+    }
+
     /** Picks the account one singleplayer world is played with. */
     public static void openForWorld(String folderName, String worldName) {
         pendingServerData = null;
@@ -196,7 +202,15 @@ public class ServerAccountPickerScreen extends ParentAwareModularScreen {
         String[] trustedLocalProviderName = { null };
         long selectedAccountId;
 
-        if (worldDirectory != null) {
+        if (singleplayerMode && worldDirectory == null) {
+            // A world being created: the pick waits for its folder.
+            String typedName = worldName != null ? worldName.trim() : "";
+            title = typedName.isEmpty() ? GuiText.tr("wawelauth.gui.new_world.title")
+                : GuiText.tr("wawelauth.gui.world_picker.title", typedName);
+            selectedAccountId = client != null && NewWorldAccount.get(client.getAccountManager()) != null
+                ? NewWorldAccount.id()
+                : -1L;
+        } else if (worldDirectory != null) {
             title = GuiText.tr("wawelauth.gui.world_picker.title", worldName != null ? worldName : worldFolder);
             ClientAccount worldAccount = client != null
                 ? WorldAuthSettings.account(worldDirectory, client.getAccountManager())
@@ -240,7 +254,7 @@ public class ServerAccountPickerScreen extends ParentAwareModularScreen {
         int listHeight = visibleRowCount * ACCOUNT_ENTRY_HEIGHT;
 
         int baseHeight = 12 + 14 + ACCOUNT_LIST_TOP_MARGIN * 2 + 18; // padding + title + list margins + manage btn
-        baseHeight += 21; // server proxy or LAN btn
+        if (!singleplayerMode || worldDirectory != null) baseHeight += 21; // server proxy or LAN btn
         if (joinParent != null) baseHeight += 21; // cancel btn
         if (showLocalAuthControls) baseHeight += 21; // manage local auth btn
         if (showLocalAuthActions) baseHeight += 23; // login/register row
@@ -299,7 +313,9 @@ public class ServerAccountPickerScreen extends ParentAwareModularScreen {
             accountList.child(buildSingleplayerClearEntry(selectedAccountId, panel, worldDirectory));
         }
         for (ClientAccount account : allAccounts) {
-            if (worldDirectory != null) {
+            if (singleplayerMode && worldDirectory == null) {
+                accountList.child(buildAccountEntry(account, selectedAccountId, panel, NewWorldAccount::set));
+            } else if (worldDirectory != null) {
                 accountList.child(
                     buildAccountEntry(
                         account,
@@ -787,7 +803,11 @@ public class ServerAccountPickerScreen extends ParentAwareModularScreen {
 
         entry.child(row);
         entry.onMousePressed(mouseButton -> {
-            WorldAuthSettings.setAccount(worldDirectory, null);
+            if (worldDirectory != null) {
+                WorldAuthSettings.setAccount(worldDirectory, null);
+            } else {
+                NewWorldAccount.reset();
+            }
             panel.closeIfOpen();
             return true;
         });
