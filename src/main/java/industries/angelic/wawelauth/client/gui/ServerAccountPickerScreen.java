@@ -1,5 +1,6 @@
 package industries.angelic.wawelauth.client.gui;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -49,6 +50,7 @@ import industries.angelic.wawelauth.wawelclient.ServerConnectionProxySupport;
 import industries.angelic.wawelauth.wawelclient.SessionBridge;
 import industries.angelic.wawelauth.wawelclient.SingleplayerAccountPersistence;
 import industries.angelic.wawelauth.wawelclient.WawelClient;
+import industries.angelic.wawelauth.wawelclient.WorldAuthSettings;
 import industries.angelic.wawelauth.wawelclient.data.AccountStatus;
 import industries.angelic.wawelauth.wawelclient.data.ClientAccount;
 import industries.angelic.wawelauth.wawelclient.data.ClientProvider;
@@ -94,9 +96,14 @@ public class ServerAccountPickerScreen extends ParentAwareModularScreen {
     private static ServerData pendingServerData;
     private static String pendingStatusMessage;
     private static boolean pendingSingleplayerMode;
+    private static String pendingWorldFolder;
+    private static String pendingWorldName;
 
     private final ServerData serverData;
     private final boolean singleplayerMode;
+    /** In singleplayer mode, the world whose account is picked, or null for the default account. */
+    private final String worldFolder;
+    private final String worldName;
 
     public static void open(ServerData serverData) {
         open(serverData, null);
@@ -110,9 +117,16 @@ public class ServerAccountPickerScreen extends ParentAwareModularScreen {
     }
 
     public static void openSingleplayer() {
+        openForWorld(null, null);
+    }
+
+    /** Picks the account one singleplayer world is played with. */
+    public static void openForWorld(String folderName, String worldName) {
         pendingServerData = null;
         pendingStatusMessage = null;
         pendingSingleplayerMode = true;
+        pendingWorldFolder = folderName;
+        pendingWorldName = worldName;
         ClientGUI.open(new ServerAccountPickerScreen());
     }
 
@@ -121,13 +135,21 @@ public class ServerAccountPickerScreen extends ParentAwareModularScreen {
         openParentOnClose(true);
         this.serverData = pendingServerData;
         this.singleplayerMode = pendingSingleplayerMode;
+        this.worldFolder = pendingWorldFolder;
+        this.worldName = pendingWorldName;
         pendingServerData = null;
         pendingSingleplayerMode = false;
+        pendingWorldFolder = null;
+        pendingWorldName = null;
     }
 
     @Override
     public ModularPanel buildUI(ModularGuiContext context) {
         boolean singleplayerMode = pendingSingleplayerMode || this.singleplayerMode;
+        String worldFolder = pendingWorldFolder != null ? pendingWorldFolder : this.worldFolder;
+        String worldName = pendingWorldName != null ? pendingWorldName : this.worldName;
+        File worldDirectory = singleplayerMode && worldFolder != null ? WorldAuthSettings.worldDirectory(worldFolder)
+            : null;
         ServerData targetServerData = pendingServerData != null ? pendingServerData : serverData;
         if (targetServerData == null && !singleplayerMode) {
             ModularPanel panel = ModularPanel.defaultPanel("wawelauth_server_picker", 200, 80);
@@ -158,7 +180,13 @@ public class ServerAccountPickerScreen extends ParentAwareModularScreen {
         String[] trustedLocalProviderName = { null };
         long selectedAccountId;
 
-        if (singleplayerMode) {
+        if (worldDirectory != null) {
+            title = GuiText.tr("wawelauth.gui.world_picker.title", worldName != null ? worldName : worldFolder);
+            ClientAccount worldAccount = client != null
+                ? WorldAuthSettings.account(worldDirectory, client.getAccountManager())
+                : null;
+            selectedAccountId = worldAccount != null ? worldAccount.getId() : -1L;
+        } else if (singleplayerMode) {
             title = GuiText.tr("wawelauth.gui.singleplayer_picker.title");
             if (client != null) {
                 SingleplayerAccountPersistence.clearMissingSelection(client.getAccountManager());
@@ -200,7 +228,7 @@ public class ServerAccountPickerScreen extends ParentAwareModularScreen {
         int listHeight = visibleRowCount * ACCOUNT_ENTRY_HEIGHT;
 
         int baseHeight = 12 + 14 + ACCOUNT_LIST_TOP_MARGIN * 2 + 18; // padding + title + list margins + manage btn
-        if (!singleplayerMode) baseHeight += 21; // server proxy btn
+        if (!singleplayerMode || worldDirectory != null) baseHeight += 21; // server proxy or LAN btn
         if (showLocalAuthControls) baseHeight += 21; // manage local auth btn
         if (showLocalAuthActions) baseHeight += 23; // login/register row
         if (statusMessage != null && !statusMessage.isEmpty()) baseHeight += 14;
@@ -255,10 +283,17 @@ public class ServerAccountPickerScreen extends ParentAwareModularScreen {
             .height(listHeight);
 
         if (singleplayerMode) {
-            accountList.child(buildSingleplayerClearEntry(selectedAccountId, panel));
+            accountList.child(buildSingleplayerClearEntry(selectedAccountId, panel, worldDirectory));
         }
         for (ClientAccount account : allAccounts) {
-            if (singleplayerMode) {
+            if (worldDirectory != null) {
+                accountList.child(
+                    buildAccountEntry(
+                        account,
+                        selectedAccountId,
+                        panel,
+                        selected -> WorldAuthSettings.setAccount(worldDirectory, selected)));
+            } else if (singleplayerMode) {
                 accountList.child(
                     buildAccountEntry(
                         account,
@@ -305,6 +340,24 @@ public class ServerAccountPickerScreen extends ParentAwareModularScreen {
         WawelAuthStyle.textButton(serverProxyBtn, 180, "wawelauth.gui.server_picker.server_proxy");
         serverProxyBtn.setEnabled(!singleplayerMode && serverProxyDialogHandler != null);
 
+        // Whose players may join, decided with the account the world is played with at the time.
+        final IPanelHandler lanDialogHandler = worldDirectory != null ? IPanelHandler.simple(
+            panel,
+            (parent, player) -> LanProvidersDialog.build(worldDirectory, worldHostProvider(worldDirectory)),
+            true) : null;
+        ButtonWidget<?> lanBtn = new ButtonWidget<>();
+        lanBtn.widthRelOffset(1.0f, CONTENT_WIDTH_OFFSET)
+            .height(18)
+            .margin(0, 3, 0, 0)
+            .onMousePressed(mouseButton -> {
+                if (lanDialogHandler != null) {
+                    lanDialogHandler.deleteCachedPanel();
+                    lanDialogHandler.openPanel();
+                }
+                return true;
+            });
+        WawelAuthStyle.textButton(lanBtn, 180, "wawelauth.gui.lan_providers.button");
+
         Column content = new Column();
         content.widthRel(1.0f)
             .heightRel(1.0f)
@@ -337,6 +390,9 @@ public class ServerAccountPickerScreen extends ParentAwareModularScreen {
         }
         if (!singleplayerMode) {
             content.child(serverProxyBtn);
+        }
+        if (worldDirectory != null) {
+            content.child(lanBtn);
         }
 
         if (showLocalAuthActions) {
@@ -672,7 +728,8 @@ public class ServerAccountPickerScreen extends ParentAwareModularScreen {
             .draw(context, x + 1, y, width, height, widgetTheme);
     }
 
-    private ButtonWidget<?> buildSingleplayerClearEntry(long selectedAccountId, ModularPanel panel) {
+    private ButtonWidget<?> buildSingleplayerClearEntry(long selectedAccountId, ModularPanel panel,
+        File worldDirectory) {
         boolean isSelected = selectedAccountId < 0L;
 
         ButtonWidget<?> entry = new ButtonWidget<>();
@@ -681,15 +738,23 @@ public class ServerAccountPickerScreen extends ParentAwareModularScreen {
             .height(16);
 
         // Without a choice, singleplayer uses the account the launcher started the game with, when there is one.
+        // A world without its own uses the singleplayer default, which may be that one.
         WawelClient client = WawelClient.instance();
-        SessionBridge.AutomaticAccount automatic = client == null ? null
-            : client.getSessionBridge()
-                .peekAccountForUnboundServer(null);
-        String automaticName = automatic != null && automatic.account.getProfileName() != null
-            ? automatic.account.getProfileName()
-            : null;
+        String automaticName;
+        String automaticKey;
+        if (worldDirectory != null) {
+            WorldAuthSettings.WorldAccount fallback = WorldAuthSettings.resolveAccount(null, client);
+            automaticName = fallback != null ? fallback.account.getProfileName() : null;
+            automaticKey = "wawelauth.gui.world_picker.default";
+        } else {
+            SessionBridge.AutomaticAccount automatic = client == null ? null
+                : client.getSessionBridge()
+                    .peekAccountForUnboundServer(null);
+            automaticName = automatic != null ? automatic.account.getProfileName() : null;
+            automaticKey = "wawelauth.gui.singleplayer_picker.automatic";
+        }
         TextWidget<?> label = new TextWidget<>(
-            automaticName != null ? IKey.str(GuiText.tr("wawelauth.gui.singleplayer_picker.automatic", automaticName))
+            automaticName != null ? IKey.str(GuiText.tr(automaticKey, automaticName))
                 : GuiText.key("wawelauth.gui.common.no_account_selected"));
         label.widthRel(1.0f)
             .heightRel(1.0f)
@@ -707,11 +772,22 @@ public class ServerAccountPickerScreen extends ParentAwareModularScreen {
 
         entry.child(row);
         entry.onMousePressed(mouseButton -> {
-            SingleplayerAccountPersistence.clearSelection();
+            if (worldDirectory != null) {
+                WorldAuthSettings.setAccount(worldDirectory, null);
+            } else {
+                SingleplayerAccountPersistence.clearSelection();
+            }
             panel.closeIfOpen();
             return true;
         });
         return entry;
+    }
+
+    private static ClientProvider worldHostProvider(File worldDirectory) {
+        WawelClient client = WawelClient.instance();
+        WorldAuthSettings.WorldAccount account = WorldAuthSettings.resolveAccount(worldDirectory, client);
+        return account != null && client != null ? client.resolveProviderByName(account.account.getProviderName())
+            : null;
     }
 
     private static boolean notBlank(String value) {

@@ -23,6 +23,7 @@ import industries.angelic.wawelauth.compat.ssb.SsbSlim;
 import industries.angelic.wawelauth.wawelclient.ClientStartupExtensions;
 import industries.angelic.wawelauth.wawelclient.WawelClient;
 import industries.angelic.wawelauth.wawelclient.WawelPingClientHooks;
+import industries.angelic.wawelauth.wawelclient.lan.LanHost;
 import industries.angelic.wawelauth.wawelcore.config.LocalConfig;
 
 public class ClientProxy extends CommonProxy {
@@ -51,6 +52,7 @@ public class ClientProxy extends CommonProxy {
         // init() only runs once and won't re-run after leaving singleplayer.
         WawelClient.start(dataDir);
         WawelPingClientHooks.register();
+        LanHost.registerPingHandler();
         GuiTransitionScheduler.register();
         AnimatedCapeClientHandler.register();
         SkinResolverClientHandler.register();

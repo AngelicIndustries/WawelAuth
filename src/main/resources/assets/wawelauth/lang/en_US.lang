@@ -10,6 +10,16 @@ wawelauth.gui.singleplayer.account_fallback=Account
 wawelauth.gui.singleplayer.choose_account=Click Account to change
 wawelauth.gui.singleplayer_picker.title=Select Singleplayer Account
 wawelauth.gui.singleplayer_picker.automatic=Automatic: %s
+wawelauth.gui.lan_providers.button=Who Can Join over LAN...
+wawelauth.gui.lan_providers.title=Who can join over LAN
+wawelauth.gui.lan_providers.title_tooltip=Players from ticked providers can join once you open the world to LAN
+wawelauth.gui.lan_providers.host_account=Your account is from here, so it stays ticked
+wawelauth.gui.lan_providers.offline_players=Allow offline players
+wawelauth.gui.lan_providers.offline_players_tooltip=Others join without their skin, as separate players
+wawelauth.gui.world_picker.title=Account for %s
+wawelauth.gui.world_picker.default=Default: %s
+wawelauth.gui.world_row.default=Default singleplayer account
+wawelauth.gui.world_row.castle=Account and LAN for this world
 
 wawelauth.gui.common.account=account
 wawelauth.gui.common.api_root=API Root: %s

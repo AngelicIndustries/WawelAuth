@@ -9,9 +9,11 @@ import net.minecraft.client.gui.GuiSelectWorld;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.util.EnumChatFormatting;
 import net.minecraft.util.ResourceLocation;
+import net.minecraft.world.storage.SaveFormatComparator;
 
 import org.lwjgl.opengl.GL11;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -22,13 +24,18 @@ import industries.angelic.wawelauth.api.WawelFaceRendererClient;
 import industries.angelic.wawelauth.api.WawelTextureResolver;
 import industries.angelic.wawelauth.client.gui.AuthButton;
 import industries.angelic.wawelauth.client.gui.ServerAccountPickerScreen;
+import industries.angelic.wawelauth.client.gui.WorldRowIcons;
+import industries.angelic.wawelauth.wawelclient.IGuiSelectWorldExt;
 import industries.angelic.wawelauth.wawelclient.SessionBridge;
 import industries.angelic.wawelauth.wawelclient.SingleplayerAccountPersistence;
 import industries.angelic.wawelauth.wawelclient.WawelClient;
 import industries.angelic.wawelauth.wawelclient.data.ClientAccount;
 
 @Mixin(GuiSelectWorld.class)
-public abstract class MixinGuiSelectWorld extends GuiScreen {
+public abstract class MixinGuiSelectWorld extends GuiScreen implements IGuiSelectWorldExt {
+
+    @Shadow
+    private List<?> field_146639_s; // GuiSelectWorld.saveList
 
     @Unique
     private static final int WAWELAUTH_SINGLEPLAYER_ACCOUNT_BUTTON_ID = 202;
@@ -41,8 +48,17 @@ public abstract class MixinGuiSelectWorld extends GuiScreen {
     @Unique
     private GuiButton wawelauth$accountButton;
 
+    @Override
+    public SaveFormatComparator wawelauth$getWorld(int index) {
+        List<?> worlds = this.field_146639_s;
+        return worlds != null && index >= 0 && index < worlds.size() ? (SaveFormatComparator) worlds.get(index) : null;
+    }
+
     @Inject(method = "initGui", at = @At("RETURN"))
     private void wawelauth$onInitGui(CallbackInfo ci) {
+        // Back from a world's account picker, show what was picked.
+        WorldRowIcons.forgetAccounts();
+        WorldRowIcons.beginFrame();
         WawelClient client = WawelClient.instance();
         if (client != null) {
             SingleplayerAccountPersistence.clearMissingSelection(client.getAccountManager());
@@ -71,6 +87,19 @@ public abstract class MixinGuiSelectWorld extends GuiScreen {
         if (button.id == WAWELAUTH_SINGLEPLAYER_ACCOUNT_BUTTON_ID) {
             ServerAccountPickerScreen.openSingleplayer();
             ci.cancel();
+        }
+    }
+
+    @Inject(method = "drawScreen", at = @At("HEAD"))
+    private void wawelauth$beginWorldRows(int mouseX, int mouseY, float partialTicks, CallbackInfo ci) {
+        WorldRowIcons.beginFrame();
+    }
+
+    @Inject(method = "drawScreen", at = @At("RETURN"))
+    private void wawelauth$drawWorldRowTooltip(int mouseX, int mouseY, float partialTicks, CallbackInfo ci) {
+        List<String> lines = WorldRowIcons.tooltip();
+        if (lines != null) {
+            this.drawHoveringText(lines, mouseX, mouseY, this.fontRendererObj);
         }
     }
 

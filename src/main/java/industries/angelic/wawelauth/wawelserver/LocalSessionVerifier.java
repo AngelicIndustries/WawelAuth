@@ -1,11 +1,5 @@
 package industries.angelic.wawelauth.wawelserver;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -15,24 +9,16 @@ import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.management.ServerConfigurationManager;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.mojang.authlib.GameProfile;
-import com.mojang.authlib.HttpAuthenticationService;
 import com.mojang.authlib.exceptions.AuthenticationUnavailableException;
 import com.mojang.authlib.minecraft.MinecraftSessionService;
 import com.mojang.authlib.properties.Property;
 import com.mojang.util.UUIDTypeAdapter;
 
-import industries.angelic.angellib.util.NetUtil;
 import industries.angelic.angellib.util.StringUtil;
 import industries.angelic.wawelauth.Config;
 import industries.angelic.wawelauth.WawelAuth;
-import industries.angelic.wawelauth.wawelcore.config.FallbackServer;
 import industries.angelic.wawelauth.wawelcore.config.ServerConfig;
-import industries.angelic.wawelauth.wawelcore.util.JsonUtil;
 
 /**
  * Server-side login verification. Queries local hasJoined endpoint first
@@ -108,51 +94,23 @@ public final class LocalSessionVerifier {
         return profileFromResponseMap(profile, username);
     }
 
-    private static GameProfile queryConfiguredFallbacks(String username, String serverId, ServerConfig config)
-        throws AuthenticationUnavailableException {
-        if (config == null || config.getFallbackServers()
-            .isEmpty()) {
+    private static GameProfile queryConfiguredFallbacks(String username, String serverId, ServerConfig config) {
+        if (config == null) {
             return null;
         }
 
-        for (FallbackServer fallback : config.getFallbackServers()) {
-            if (fallback == null) continue;
-
-            String rawSessionUrl = normalizeUrl(fallback.getSessionServerUrl());
-            if (rawSessionUrl == null) continue;
-
-            String sessionMinecraftBase = ApiUrlUtil.resolveSessionMinecraftBase(rawSessionUrl);
-            URL checkUrl = HttpAuthenticationService.constantURL(sessionMinecraftBase + "/hasJoined");
-            Map<String, Object> args = new HashMap<String, Object>();
-            args.put("username", username);
-            args.put("serverId", serverId);
-            URL url = HttpAuthenticationService.concatenateURL(checkUrl, HttpAuthenticationService.buildQuery(args));
-
-            String displayName = StringUtil.trimToNull(fallback.getName());
-            if (displayName == null) {
-                displayName = rawSessionUrl;
-            }
-
-            try {
-                WawelAuth.debug("Trying fallback hasJoined: " + displayName + " -> " + url);
-                GameProfile profile = fetchProfile(url, username);
-                if (profile != null) {
-                    WawelAuth.debug("Fallback hasJoined hit: " + displayName);
-                    if (profile.getId() != null && rawSessionUrl != null) {
-                        playerProviderSessionUrls.put(profile.getId(), rawSessionUrl);
-                        String providerName = StringUtil.trimToNull(fallback.getName());
-                        if (providerName != null) {
-                            playerProviderNames.put(profile.getId(), providerName);
-                        }
-                    }
-                    return profile;
-                }
-            } catch (AuthenticationUnavailableException e) {
-                WawelAuth.debug("Fallback hasJoined unavailable for " + displayName + ": " + e.getMessage());
+        FallbackHasJoined.Hit hit = FallbackHasJoined.query(username, serverId, config.getFallbackServers());
+        if (hit == null) {
+            return null;
+        }
+        if (hit.profile.getId() != null) {
+            playerProviderSessionUrls.put(hit.profile.getId(), hit.sessionUrl);
+            String providerName = StringUtil.trimToNull(hit.fallback.getName());
+            if (providerName != null) {
+                playerProviderNames.put(hit.profile.getId(), providerName);
             }
         }
-
-        return null;
+        return hit.profile;
     }
 
     public static String consumeDisconnectReason(String defaultReason) {
@@ -198,87 +156,6 @@ public final class LocalSessionVerifier {
         }
 
         return false;
-    }
-
-    private static GameProfile fetchProfile(URL url, String fallbackName) throws AuthenticationUnavailableException {
-        HttpURLConnection conn = null;
-        try {
-            conn = (HttpURLConnection) url.openConnection();
-            conn.setConnectTimeout(10_000);
-            conn.setReadTimeout(10_000);
-            conn.setRequestMethod("GET");
-
-            int status = conn.getResponseCode();
-            if (status == 204 || status == 403 || status == 404) {
-                return null;
-            }
-            if (status != 200) {
-                WawelAuth.debug("Local hasJoined returned non-success HTTP " + status);
-                return null;
-            }
-
-            String body = readUtf8(conn.getInputStream());
-            JsonObject root;
-            try {
-                root = new JsonParser().parse(body)
-                    .getAsJsonObject();
-            } catch (Exception e) {
-                WawelAuth.debug("Local hasJoined returned invalid JSON: " + e.getMessage());
-                return null;
-            }
-
-            String id = getString(root, "id");
-            if (id == null || id.isEmpty()) {
-                return null;
-            }
-
-            UUID uuid;
-            try {
-                uuid = UUIDTypeAdapter.fromString(id);
-            } catch (Exception e) {
-                WawelAuth.debug("Local hasJoined returned invalid UUID: " + id);
-                return null;
-            }
-
-            String name = getString(root, "name");
-            String safeName = StringUtil.trimToNull(name);
-            if (safeName == null) {
-                safeName = StringUtil.trimToNull(fallbackName);
-            }
-            if (safeName == null) {
-                safeName = "UnknownPlayer";
-            }
-            GameProfile result = new GameProfile(uuid, safeName);
-
-            JsonArray properties = root.has("properties") && root.get("properties")
-                .isJsonArray() ? root.getAsJsonArray("properties") : null;
-            if (properties != null) {
-                for (JsonElement element : properties) {
-                    if (element == null || !element.isJsonObject()) continue;
-                    JsonObject property = element.getAsJsonObject();
-                    String propName = getString(property, "name");
-                    String propValue = getString(property, "value");
-                    if (propName == null || propValue == null) continue;
-
-                    // 1.7.10 S0CPacketSpawnPlayer needs signature as a mandatory string.
-                    // Null signature would crash packet encoding, so skip unsigned.
-                    String signature = StringUtil.trimToNull(getString(property, "signature"));
-                    if (signature == null) {
-                        continue;
-                    }
-                    result.getProperties()
-                        .put(propName, new Property(propName, propValue, signature));
-                }
-            }
-
-            return result;
-        } catch (IOException e) {
-            throw new AuthenticationUnavailableException(e);
-        } finally {
-            if (conn != null) {
-                conn.disconnect();
-            }
-        }
     }
 
     private static GameProfile profileFromResponseMap(Map<String, Object> root, String fallbackName) {
@@ -338,24 +215,6 @@ public final class LocalSessionVerifier {
         return value instanceof String ? (String) value : null;
     }
 
-    private static String readUtf8(InputStream in) throws IOException {
-        try (InputStream input = in; ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            byte[] buffer = new byte[4096];
-            int read;
-            while ((read = input.read(buffer)) != -1) {
-                out.write(buffer, 0, read);
-            }
-            return new String(out.toByteArray(), StandardCharsets.UTF_8);
-        }
-    }
-
-    private static String getString(JsonObject obj, String key) {
-        return JsonUtil.getString(obj, key);
-    }
-
-    private static String normalizeUrl(String raw) {
-        return NetUtil.normalizeHttpUrl(raw);
-    }
     // =========================================================================
     // Per-player provider tracking
     // =========================================================================
