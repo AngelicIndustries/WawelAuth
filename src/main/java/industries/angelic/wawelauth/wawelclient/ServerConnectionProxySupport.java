@@ -163,8 +163,11 @@ public final class ServerConnectionProxySupport {
                 }
             });
 
+        if (isBlockedServer(host)) {
+            throw new ChannelException(new ConnectException("Network is unreachable"));
+        }
         try (ProviderProxySupport.AuthContext ignored = ProviderProxySupport.enterAuthContext(normalized)) {
-            bootstrap.connect(InetSocketAddress.createUnresolved(host, port))
+            bootstrap.connect(new ProxyTarget(host, port))
                 .syncUninterruptibly();
         }
 
@@ -187,6 +190,9 @@ public final class ServerConnectionProxySupport {
 
     private static void connectSocketThroughGameplayProxy(Socket socket, SocketAddress remoteAddress,
         SocketAddress localAddress, ProviderProxySettings settings, int connectTimeoutMs) throws Exception {
+        if (remoteAddress instanceof ProxyTarget target) {
+            remoteAddress = InetSocketAddress.createUnresolved(target.host, target.port);
+        }
         if (!(remoteAddress instanceof InetSocketAddress)) {
             throw new ConnectException("Unsupported remote address: " + remoteAddress);
         }
@@ -326,6 +332,39 @@ public final class ServerConnectionProxySupport {
             return Integer.parseInt(code.trim());
         } catch (NumberFormatException e) {
             throw new IOException("Invalid HTTP proxy response: " + statusLine, e);
+        }
+    }
+
+    /**
+     * Mojang's blocked-server check (patchy, which every 1.7.10 launcher loads as {@code com.mojang:netty}) replaces
+     * Netty's connect and reads the IP of any {@link InetSocketAddress}, which an unresolved one doesn't have. The
+     * proxy resolves the name, so its target reaches the channel as this instead, and the name is checked here.
+     */
+    private static boolean isBlockedServer(String host) {
+        try {
+            Object blocked = Class.forName("com.mojang.patchy.BlockedServers")
+                .getMethod("isBlockedServer", String.class)
+                .invoke(null, host);
+            return Boolean.TRUE.equals(blocked);
+        } catch (ReflectiveOperationException | LinkageError | RuntimeException e) {
+            return false;
+        }
+    }
+
+    /** A game server the proxy connects to by name. */
+    private static final class ProxyTarget extends SocketAddress {
+
+        private final String host;
+        private final int port;
+
+        private ProxyTarget(String host, int port) {
+            this.host = host;
+            this.port = port;
+        }
+
+        @Override
+        public String toString() {
+            return host + ":" + port;
         }
     }
 
