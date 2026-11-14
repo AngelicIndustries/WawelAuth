@@ -21,6 +21,7 @@ wawelauth.gui.lan.stopped=The world is no longer open to LAN
 wawelauth.gui.world_picker.title=Account for %s
 wawelauth.gui.world_picker.default=Default: %s
 wawelauth.gui.world_row.default=Default singleplayer account
+wawelauth.gui.world_row.skip_default=Stop using the default in this world
 wawelauth.gui.world_row.click=Click to pick the account and LAN access
 wawelauth.gui.new_world.click=Click to pick the account for this world
 wawelauth.gui.new_world.title=Account for the new world

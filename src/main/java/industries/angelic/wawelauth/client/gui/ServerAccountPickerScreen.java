@@ -776,9 +776,10 @@ public class ServerAccountPickerScreen extends ParentAwareModularScreen {
         entry.widthRel(1.0f)
             .height(16);
 
-        // A world without its own account uses the singleplayer default chosen before Wawel Auth 1.0.6, if any, else
-        // the account the launcher started the game with.
-        WorldAuthSettings.WorldAccount fallback = WorldAuthSettings.resolveAccount(null, WawelClient.instance());
+        // A world without its own account uses the singleplayer default chosen before Wawel Auth 1.0.6, if any and the
+        // world didn't stop using it, else the account the launcher started the game with.
+        WorldAuthSettings.WorldAccount fallback = WorldAuthSettings
+            .fallbackAccount(worldDirectory, WawelClient.instance());
         String automaticName = fallback != null ? fallback.account.getProfileName() : null;
         String automaticKey = fallback != null && fallback.source == WorldAuthSettings.AccountSource.DEFAULT
             ? "wawelauth.gui.world_picker.default"

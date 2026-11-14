@@ -12,7 +12,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import industries.angelic.wawelauth.WawelAuth;
 import industries.angelic.wawelauth.wawelclient.NewWorldAccount;
-import industries.angelic.wawelauth.wawelclient.SingleplayerAccountPersistence;
 import industries.angelic.wawelauth.wawelclient.WawelClient;
 import industries.angelic.wawelauth.wawelclient.WorldAuthSettings;
 import industries.angelic.wawelauth.wawelclient.data.ClientAccount;
@@ -33,7 +32,7 @@ public class MixinMinecraftSingleplayerAccount {
         NewWorldAccount.bindIfCreating(worldDirectory, client.getAccountManager());
         ClientAccount account = WorldAuthSettings.account(worldDirectory, client.getAccountManager());
         if (account == null) {
-            account = SingleplayerAccountPersistence.resolveSelectedAccount(client.getAccountManager());
+            account = WorldAuthSettings.oldDefaultAccount(worldDirectory, client.getAccountManager());
         }
         if (account == null) {
             // Without a chosen account, play as the account the launcher started the game with, as on servers.

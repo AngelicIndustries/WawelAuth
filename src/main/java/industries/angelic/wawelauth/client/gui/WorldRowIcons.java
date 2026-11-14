@@ -30,8 +30,8 @@ import industries.angelic.wawelauth.wawelclient.data.ClientProvider;
 /**
  * The account face at the right edge of each singleplayer world. It sits in the gap between the row and the scroll
  * bar: Cherished Worlds puts its star in the left gap, and Et Futurum's thumbnail and the world's text fill the row.
- * Clicking the face opens the world's account picker; shift-clicking the face of the world's own account makes the
- * world use the default again.
+ * Clicking the face opens the world's account picker. Shift-clicking it drops the world's own account, or makes the
+ * world stop using the singleplayer default chosen before 1.0.6.
  */
 @SideOnly(Side.CLIENT)
 public final class WorldRowIcons {
@@ -71,7 +71,7 @@ public final class WorldRowIcons {
         WorldAuthSettings.WorldAccount account = account(world.getFileName());
         int headX = x + OFFSET_X;
         int headY = y + OFFSET_Y;
-        boolean own = account != null && account.source == WorldAuthSettings.AccountSource.WORLD;
+        boolean droppable = droppable(account);
         boolean hovered = mouseInList && mouseX >= headX
             && mouseX < headX + HEAD_SIZE
             && mouseY >= headY
@@ -94,7 +94,7 @@ public final class WorldRowIcons {
                 HEAD_SIZE,
                 1.0F,
                 hovered,
-                hovered && own && GuiScreen.isShiftKeyDown());
+                hovered && droppable && GuiScreen.isShiftKeyDown());
         } finally {
             GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
             GL11.glPopAttrib();
@@ -130,23 +130,31 @@ public final class WorldRowIcons {
                 EnumChatFormatting.GRAY + account.getProfileUuid()
                     .toString());
         }
-        if (shift && hoveredAccount != null && hoveredAccount.source == WorldAuthSettings.AccountSource.WORLD) {
-            lines.add(EnumChatFormatting.RED + GuiText.tr("wawelauth.gui.server_tooltip.unselect_account"));
+        if (shift && hoveredAccount != null) {
+            if (hoveredAccount.source == WorldAuthSettings.AccountSource.WORLD) {
+                lines.add(EnumChatFormatting.RED + GuiText.tr("wawelauth.gui.server_tooltip.unselect_account"));
+            } else if (hoveredAccount.source == WorldAuthSettings.AccountSource.DEFAULT) {
+                lines.add(EnumChatFormatting.RED + GuiText.tr("wawelauth.gui.world_row.skip_default"));
+            }
         }
         return lines;
     }
 
     /**
-     * A click on a face opens the world's account picker, and a shift-click on the face of the world's own account
-     * drops it. True when it took the click.
+     * A click on a face opens the world's account picker. A shift-click drops the world's own account, or makes the
+     * world stop using the old singleplayer default. True when it took the click.
      */
     public static boolean click() {
         if (hoveredFolder == null) return false;
         if (GuiScreen.isShiftKeyDown()) {
-            if (hoveredAccount == null || hoveredAccount.source != WorldAuthSettings.AccountSource.WORLD) {
+            if (!droppable(hoveredAccount)) {
                 return false;
             }
-            WorldAuthSettings.setAccount(hoveredWorldDirectory, null);
+            if (hoveredAccount.source == WorldAuthSettings.AccountSource.WORLD) {
+                WorldAuthSettings.setAccount(hoveredWorldDirectory, null);
+            } else {
+                WorldAuthSettings.skipOldDefault(hoveredWorldDirectory);
+            }
             forgetAccounts();
             beginFrame();
             return true;
@@ -159,6 +167,11 @@ public final class WorldRowIcons {
         beginFrame();
         ServerAccountPickerScreen.openForWorld(folder, name);
         return true;
+    }
+
+    private static boolean droppable(WorldAuthSettings.WorldAccount account) {
+        return account != null && (account.source == WorldAuthSettings.AccountSource.WORLD
+            || account.source == WorldAuthSettings.AccountSource.DEFAULT);
     }
 
     private static WorldAuthSettings.WorldAccount account(String folder) {

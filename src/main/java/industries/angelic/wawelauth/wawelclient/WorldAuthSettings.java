@@ -41,6 +41,8 @@ public final class WorldAuthSettings {
         Map<String, Boolean> lanProviders = new LinkedHashMap<>();
         /** Lets players no ticked provider verifies join over LAN as offline players, as vanilla does. */
         Boolean lanLetOthersIn;
+        /** The world no longer uses the singleplayer default chosen before 1.0.6. */
+        Boolean skipOldDefault;
 
         public Data() {}
 
@@ -92,7 +94,13 @@ public final class WorldAuthSettings {
         if (client == null) return null;
         ClientAccount account = worldDirectory != null ? account(worldDirectory, client.getAccountManager()) : null;
         if (account != null) return new WorldAccount(account, AccountSource.WORLD);
-        account = SingleplayerAccountPersistence.resolveSelectedAccount(client.getAccountManager());
+        return fallbackAccount(worldDirectory, client);
+    }
+
+    /** The account a world is played with while it has none of its own; worldDirectory is null for a new world. */
+    public static WorldAccount fallbackAccount(File worldDirectory, WawelClient client) {
+        if (client == null) return null;
+        ClientAccount account = oldDefaultAccount(worldDirectory, client.getAccountManager());
         if (account != null) return new WorldAccount(account, AccountSource.DEFAULT);
         SessionBridge.AutomaticAccount automatic = client.getSessionBridge()
             .peekAccountForUnboundServer(null);
@@ -120,7 +128,10 @@ public final class WorldAuthSettings {
 
     public static synchronized void save(File worldDirectory, Data data) {
         File file = file(worldDirectory);
-        if (data.account == null && data.lanProviders.isEmpty() && !data.letsOthersIn() && !file.exists()) {
+        if (data.account == null && data.lanProviders.isEmpty()
+            && !data.letsOthersIn()
+            && data.skipOldDefault == null
+            && !file.exists()) {
             return;
         }
         JsonConfigIO.save(file, data);
@@ -172,6 +183,21 @@ public final class WorldAuthSettings {
 
     public static synchronized boolean hasAccount(File worldDirectory) {
         return load(worldDirectory).account != null;
+    }
+
+    /** The singleplayer default chosen before 1.0.6, unless the world stopped using it. */
+    public static ClientAccount oldDefaultAccount(File worldDirectory, AccountManager accountManager) {
+        if (worldDirectory != null && Boolean.TRUE.equals(load(worldDirectory).skipOldDefault)) {
+            return null;
+        }
+        return SingleplayerAccountPersistence.resolveSelectedAccount(accountManager);
+    }
+
+    /** Makes the world stop using the old singleplayer default; other worlds keep it. */
+    public static synchronized void skipOldDefault(File worldDirectory) {
+        Data data = load(worldDirectory);
+        data.skipOldDefault = Boolean.TRUE;
+        save(worldDirectory, data);
     }
 
     /** Plays the world with an account, or with the default one for null. */

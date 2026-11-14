@@ -10,7 +10,8 @@ import industries.angelic.wawelauth.wawelcore.config.LocalConfig;
 
 /**
  * The singleplayer default account chosen with the world list's Account button before 1.0.6. Worlds without their own
- * account keep using it, so they don't change player; it can no longer be chosen.
+ * account keep using it, so they don't change player, until shift-clicking a world's face stops it for that world. It
+ * can no longer be chosen.
  */
 public final class SingleplayerAccountPersistence {
 
