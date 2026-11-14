@@ -21,6 +21,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -38,6 +39,7 @@ import industries.angelic.wawelauth.wawelclient.http.ProviderProxySupport;
 import industries.angelic.wawelauth.wawelclient.http.YggdrasilHttpClient;
 import industries.angelic.wawelauth.wawelclient.http.YggdrasilRequestException;
 import industries.angelic.wawelauth.wawelclient.storage.ClientProviderDAO;
+import industries.angelic.wawelauth.wawelcore.util.HexUtil;
 
 /**
  * Manages authentication providers.
@@ -49,6 +51,7 @@ import industries.angelic.wawelauth.wawelclient.storage.ClientProviderDAO;
 public class ProviderRegistry {
 
     private static final String DEFAULT_PROVIDER_DIR_NAME = "default-providers";
+    private static final String SEEDED_HASHES_FILE_NAME = ".seeded-sha256";
     private static final String OFFLINE_API_ROOT = "offline://account";
     private static final String OFFLINE_AUTH_URL = OFFLINE_API_ROOT + "/authserver";
     private static final String OFFLINE_SESSION_URL = OFFLINE_API_ROOT + "/sessionserver";
@@ -679,32 +682,125 @@ public class ProviderRegistry {
         if (directory == null) {
             return;
         }
+        Map<String, byte[]> bundled = new LinkedHashMap<>();
         for (Map.Entry<String, String> entry : SEEDED_DEFAULT_PROVIDER_RESOURCES.entrySet()) {
-            File destination = new File(directory, entry.getKey());
-            if (!destination.exists()) {
-                copyBundledFile(entry.getValue(), destination);
+            byte[] data = loadClasspathBytes(entry.getValue());
+            if (data == null) {
+                WawelAuth.LOG.warn("Missing bundled default provider resource '{}'", entry.getValue());
+                continue;
             }
+            bundled.put(entry.getKey(), data);
+        }
+        seedDefaultProviders(directory, bundled);
+    }
+
+    /**
+     * Writes each bundled default provider file that is missing, or that is still exactly what Wawel Auth last wrote
+     * there, so unedited files follow updates. A file someone edited is kept. What was written is recorded as a
+     * SHA-256 per file in {@value #SEEDED_HASHES_FILE_NAME}.
+     */
+    static void seedDefaultProviders(File directory, Map<String, byte[]> bundled) {
+        File hashesFile = new File(directory, SEEDED_HASHES_FILE_NAME);
+        Properties seeded = loadSeededHashes(hashesFile);
+        boolean changed = false;
+        for (Map.Entry<String, byte[]> entry : bundled.entrySet()) {
+            String name = entry.getKey();
+            String bundledHash = sha256(entry.getValue());
+            File file = new File(directory, name);
+            byte[] current = file.isFile() ? readBytes(file) : null;
+            String currentHash = current != null ? sha256(current) : null;
+
+            if (!bundledHash.equals(currentHash)) {
+                boolean unedited = !file.exists()
+                    || currentHash != null && currentHash.equals(seeded.getProperty(name));
+                if (!unedited) {
+                    WawelAuth.LOG.info(
+                        "Kept the edited default provider file '{}'; this Wawel Auth version ships a different one, delete the file to use it",
+                        file.getAbsolutePath());
+                    continue;
+                }
+                if (!writeAtomically(file, entry.getValue())) {
+                    continue;
+                }
+                if (current != null) {
+                    WawelAuth.LOG.info("Updated default provider file '{}' to this Wawel Auth version's", name);
+                }
+            }
+            if (!bundledHash.equals(seeded.getProperty(name))) {
+                seeded.setProperty(name, bundledHash);
+                changed = true;
+            }
+        }
+        if (changed) {
+            saveSeededHashes(hashesFile, seeded);
         }
     }
 
-    private static void copyBundledFile(String resourcePath, File destination) {
-        File parent = destination.getParentFile();
+    private static Properties loadSeededHashes(File file) {
+        Properties hashes = new Properties();
+        if (file.isFile()) {
+            try (InputStream in = new FileInputStream(file)) {
+                hashes.load(in);
+            } catch (IOException e) {
+                WawelAuth.LOG.warn("Failed to read '{}': {}", file.getAbsolutePath(), e.getMessage());
+            }
+        }
+        return hashes;
+    }
+
+    private static void saveSeededHashes(File file, Properties hashes) {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        try {
+            hashes.store(out, "SHA-256 of each default provider file as Wawel Auth last wrote it");
+        } catch (IOException e) {
+            return;
+        }
+        writeAtomically(file, out.toByteArray());
+    }
+
+    private static byte[] readBytes(File file) {
+        try {
+            return java.nio.file.Files.readAllBytes(file.toPath());
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
+    /** Writes through a temporary file, since instances sharing this folder may start at the same time. */
+    private static boolean writeAtomically(File file, byte[] data) {
+        File parent = file.getParentFile();
         if (parent != null && !parent.exists() && !parent.mkdirs()) {
             WawelAuth.LOG.warn("Failed to create default provider directory '{}'", parent.getAbsolutePath());
-            return;
+            return false;
         }
-
-        byte[] data = loadClasspathBytes(resourcePath);
-        if (data == null) {
-            WawelAuth.LOG.warn("Missing bundled default provider resource '{}'", resourcePath);
-            return;
-        }
-
+        java.nio.file.Path target = file.toPath();
+        java.nio.file.Path temporary = target.resolveSibling(file.getName() + ".tmp");
         try {
-            java.nio.file.Files.write(destination.toPath(), data);
+            java.nio.file.Files.write(temporary, data);
+            try {
+                java.nio.file.Files.move(
+                    temporary,
+                    target,
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+                    java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+            } catch (java.nio.file.AtomicMoveNotSupportedException e) {
+                java.nio.file.Files.move(temporary, target, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            }
+            return true;
         } catch (IOException e) {
             WawelAuth.LOG
-                .warn("Failed to seed default provider file '{}': {}", destination.getAbsolutePath(), e.getMessage());
+                .warn("Failed to write default provider file '{}': {}", file.getAbsolutePath(), e.getMessage());
+            return false;
+        }
+    }
+
+    private static String sha256(byte[] data) {
+        try {
+            return HexUtil.bytesToHex(
+                MessageDigest.getInstance("SHA-256")
+                    .digest(data));
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
         }
     }
 
