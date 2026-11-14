@@ -70,7 +70,7 @@ public final class WorldAuthSettings {
     public enum AccountSource {
         /** Chosen for this world. */
         WORLD,
-        /** The singleplayer default chosen from the world list's Account button. */
+        /** The singleplayer default the world list's Account button chose before 1.0.6, which worlds keep using. */
         DEFAULT,
         /** The account the launcher started the game with. */
         AUTOMATIC

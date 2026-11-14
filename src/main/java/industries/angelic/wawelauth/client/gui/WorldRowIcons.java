@@ -1,5 +1,6 @@
 package industries.angelic.wawelauth.client.gui;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -8,6 +9,7 @@ import java.util.Map;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.audio.PositionedSoundRecord;
 import net.minecraft.client.gui.Gui;
+import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.util.EnumChatFormatting;
 import net.minecraft.util.ResourceLocation;
@@ -26,28 +28,29 @@ import industries.angelic.wawelauth.wawelclient.data.ClientAccount;
 import industries.angelic.wawelauth.wawelclient.data.ClientProvider;
 
 /**
- * The account face and castle icon at the right edge of each singleplayer world, as server rows have. They sit in
- * the gap between the row and the scroll bar: Cherished Worlds puts its star in the left one, and Et Futurum's
- * thumbnail and the world's text fill the row.
+ * The account face at the right edge of each singleplayer world. It sits in the gap between the row and the scroll
+ * bar: Cherished Worlds puts its star in the left gap, and Et Futurum's thumbnail and the world's text fill the row.
+ * Clicking the face opens the world's account picker; shift-clicking the face of the world's own account makes the
+ * world use the default again.
  */
 @SideOnly(Side.CLIENT)
 public final class WorldRowIcons {
 
-    private static final ResourceLocation CASTLE = new ResourceLocation("wawelauth", "textures/gui/logo_2_outline.png");
-    private static final int SIZE = 12;
-    /** From the x GuiSlot draws the row's text at to just past the row's selection box. */
-    private static final int OFFSET_X = 220;
-    private static final int HEAD_OFFSET_Y = 3;
-    private static final int CASTLE_OFFSET_Y = 19;
+    private static final int HEAD_SIZE = 12;
+    /** From the x GuiSlot draws the row's text at: the gap between the row's selection box and the scroll bar. */
+    private static final int OFFSET_X = 219;
+    /** Centered in the row's 32 pixels, as Cherished Worlds' star is. */
+    private static final int OFFSET_Y = 10;
     private static final float DEFAULT_HEAD_ALPHA = 0.55F;
+    private static final int OUTLINE_COLOR = 0xFFFFFFFF;
     private static final long ACCOUNT_CACHE_MS = 2_000L;
 
     private static final Map<String, Cached> ACCOUNTS = new HashMap<>();
 
     private static String hoveredFolder;
     private static String hoveredName;
-    private static boolean hoveredHead;
     private static WorldAuthSettings.WorldAccount hoveredAccount;
+    private static File hoveredWorldDirectory;
 
     private WorldRowIcons() {}
 
@@ -56,21 +59,24 @@ public final class WorldRowIcons {
         hoveredFolder = null;
         hoveredName = null;
         hoveredAccount = null;
+        hoveredWorldDirectory = null;
     }
 
     public static void forgetAccounts() {
         ACCOUNTS.clear();
     }
 
-    /** Draws a row's icons, from the world list's own row drawing so the list clips them. */
+    /** Draws a row's face, from the world list's own row drawing so the list clips it. */
     public static void drawRow(SaveFormatComparator world, int x, int y, int mouseX, int mouseY, boolean mouseInList) {
         if (world == null) return;
         WorldAuthSettings.WorldAccount account = account(world.getFileName());
-        int left = x + OFFSET_X;
-        int headTop = y + HEAD_OFFSET_Y;
-        int castleTop = y + CASTLE_OFFSET_Y;
-        boolean overHead = mouseInList && within(mouseX, mouseY, left, headTop);
-        boolean overCastle = mouseInList && within(mouseX, mouseY, left, castleTop);
+        int headX = x + OFFSET_X;
+        int headY = y + OFFSET_Y;
+        boolean own = account != null && account.source == WorldAuthSettings.AccountSource.WORLD;
+        boolean hovered = mouseInList && mouseX >= headX
+            && mouseX < headX + HEAD_SIZE
+            && mouseY >= headY
+            && mouseY < headY + HEAD_SIZE;
 
         GL11.glPushAttrib(GL11.GL_ALL_ATTRIB_BITS);
         try {
@@ -79,56 +85,79 @@ public final class WorldRowIcons {
             GL11.glEnable(GL11.GL_BLEND);
             GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
             RenderHelper.disableStandardItemLighting();
+            GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
 
-            if (account != null && account.account.getProfileUuid() != null) {
-                drawFace(
-                    account.account,
-                    left,
-                    headTop,
-                    account.source == WorldAuthSettings.AccountSource.WORLD ? 1.0F : DEFAULT_HEAD_ALPHA);
+            // Without any account, a faded default face still shows where to click.
+            drawFace(account != null ? account.account : null, headX, headY, own ? 1.0F : DEFAULT_HEAD_ALPHA);
+            if (hovered && own && GuiScreen.isShiftKeyDown()) {
+                Gui.drawRect(headX, headY, headX + HEAD_SIZE, headY + HEAD_SIZE, 0x55FF0000);
             }
-
-            float shade = overCastle ? 1.0F : 0.75F;
-            GL11.glColor4f(shade, shade, shade, 1.0F);
-            Minecraft.getMinecraft()
-                .getTextureManager()
-                .bindTexture(CASTLE);
-            Gui.func_146110_a(/* drawModalRectWithCustomSizedTexture */left, castleTop, 0, 0, SIZE, SIZE, SIZE, SIZE);
+            if (hovered) {
+                int left = headX - 1;
+                int top = headY - 1;
+                int right = headX + HEAD_SIZE + 1;
+                int bottom = headY + HEAD_SIZE + 1;
+                Gui.drawRect(left, top, right, top + 1, OUTLINE_COLOR);
+                Gui.drawRect(left, bottom - 1, right, bottom, OUTLINE_COLOR);
+                Gui.drawRect(left, top + 1, left + 1, bottom - 1, OUTLINE_COLOR);
+                Gui.drawRect(right - 1, top + 1, right, bottom - 1, OUTLINE_COLOR);
+            }
         } finally {
             GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
             GL11.glPopAttrib();
         }
 
-        if (overHead && account != null || overCastle) {
+        if (hovered) {
             hoveredFolder = world.getFileName();
             hoveredName = world.getDisplayName();
-            hoveredHead = overHead;
             hoveredAccount = account;
+            hoveredWorldDirectory = WorldAuthSettings.worldDirectory(world.getFileName());
         }
     }
 
-    /** The hovered icon's tooltip lines, or null. */
+    /** The hovered face's tooltip lines, or null. */
     public static List<String> tooltip() {
         if (hoveredFolder == null) return null;
         List<String> lines = new ArrayList<>();
-        if (hoveredHead && hoveredAccount != null) {
-            String name = hoveredAccount.account.getProfileName();
-            lines.add(EnumChatFormatting.WHITE + (name != null ? name : "?"));
+        boolean shift = GuiScreen.isShiftKeyDown();
+        ClientAccount account = hoveredAccount != null ? hoveredAccount.account : null;
+        if (account == null) {
+            lines.add(EnumChatFormatting.WHITE + GuiText.tr("wawelauth.gui.common.no_account_selected"));
+        } else {
+            lines.add(EnumChatFormatting.WHITE + (account.getProfileName() != null ? account.getProfileName() : "?"));
             if (hoveredAccount.source == WorldAuthSettings.AccountSource.DEFAULT) {
                 lines.add(EnumChatFormatting.GRAY + GuiText.tr("wawelauth.gui.world_row.default"));
             } else if (hoveredAccount.source == WorldAuthSettings.AccountSource.AUTOMATIC) {
                 lines.add(EnumChatFormatting.GRAY + GuiText.tr("wawelauth.gui.server_tooltip.automatic_default"));
             }
-            lines.add(EnumChatFormatting.GRAY + GuiText.tr("wawelauth.gui.server_tooltip.choose_account"));
-        } else {
-            lines.add(GuiText.tr("wawelauth.gui.world_row.castle"));
+        }
+        lines.add(EnumChatFormatting.GRAY + GuiText.tr("wawelauth.gui.world_row.click"));
+        if (shift && account != null && account.getProfileUuid() != null) {
+            lines.add(
+                EnumChatFormatting.GRAY + account.getProfileUuid()
+                    .toString());
+        }
+        if (shift && hoveredAccount != null && hoveredAccount.source == WorldAuthSettings.AccountSource.WORLD) {
+            lines.add(EnumChatFormatting.RED + GuiText.tr("wawelauth.gui.server_tooltip.unselect_account"));
         }
         return lines;
     }
 
-    /** Opens the world's account picker for a click on an icon; true when it took the click. */
+    /**
+     * A click on a face opens the world's account picker, and a shift-click on the face of the world's own account
+     * drops it. True when it took the click.
+     */
     public static boolean click() {
         if (hoveredFolder == null) return false;
+        if (GuiScreen.isShiftKeyDown()) {
+            if (hoveredAccount == null || hoveredAccount.source != WorldAuthSettings.AccountSource.WORLD) {
+                return false;
+            }
+            WorldAuthSettings.setAccount(hoveredWorldDirectory, null);
+            forgetAccounts();
+            beginFrame();
+            return true;
+        }
         String folder = hoveredFolder;
         String name = hoveredName;
         Minecraft.getMinecraft()
@@ -151,21 +180,17 @@ public final class WorldRowIcons {
         return cached.account;
     }
 
-    private static boolean within(int mouseX, int mouseY, int left, int top) {
-        return mouseX >= left && mouseX < left + SIZE && mouseY >= top && mouseY < top + SIZE;
-    }
-
     private static void drawFace(ClientAccount account, int x, int y, float alpha) {
         WawelClient client = WawelClient.instance();
         ResourceLocation skin = WawelTextureResolver.getDefaultSkin();
-        if (client != null) {
+        if (client != null && account != null && account.getProfileUuid() != null) {
             String profileName = account.getProfileName() != null ? account.getProfileName() : "?";
             ClientProvider provider = client.resolveProviderByName(account.getProviderName());
             skin = client.getTextureResolver()
                 .getSkin(account.getProfileUuid(), profileName, provider, false);
         }
         GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
-        WawelFaceRendererClient.drawFace(skin, x, y, SIZE, SIZE, alpha);
+        WawelFaceRendererClient.drawFace(skin, x, y, HEAD_SIZE, HEAD_SIZE, alpha);
     }
 
     private static final class Cached {

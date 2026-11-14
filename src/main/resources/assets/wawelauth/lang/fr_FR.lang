@@ -1,6 +1,5 @@
 wawelauth.configgui.title=Wawel Auth
 wawelauth.gui.account_manager.open_folder=Ouvrir le dossier Wawel Auth
-wawelauth.gui.singleplayer_picker.title=Sélectionner le compte solo
 
 wawelauth.gui.common.account=compte
 wawelauth.gui.common.api_root=Racine API : %s

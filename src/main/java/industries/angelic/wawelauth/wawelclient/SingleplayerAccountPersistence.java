@@ -9,7 +9,8 @@ import industries.angelic.wawelauth.wawelcore.config.JsonConfigIO;
 import industries.angelic.wawelauth.wawelcore.config.LocalConfig;
 
 /**
- * Persists the singleplayer account selected from the world list screen.
+ * The singleplayer default account chosen with the world list's Account button before 1.0.6. Worlds without their own
+ * account keep using it, so they don't change player; it can no longer be chosen.
  */
 public final class SingleplayerAccountPersistence {
 

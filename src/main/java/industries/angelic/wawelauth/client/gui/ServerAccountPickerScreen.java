@@ -47,8 +47,6 @@ import industries.angelic.wawelauth.wawelclient.ProviderRegistry;
 import industries.angelic.wawelauth.wawelclient.ServerBindingPersistence;
 import industries.angelic.wawelauth.wawelclient.ServerCapabilities;
 import industries.angelic.wawelauth.wawelclient.ServerConnectionProxySupport;
-import industries.angelic.wawelauth.wawelclient.SessionBridge;
-import industries.angelic.wawelauth.wawelclient.SingleplayerAccountPersistence;
 import industries.angelic.wawelauth.wawelclient.WawelClient;
 import industries.angelic.wawelauth.wawelclient.WorldAuthSettings;
 import industries.angelic.wawelauth.wawelclient.data.AccountStatus;
@@ -101,7 +99,7 @@ public class ServerAccountPickerScreen extends ParentAwareModularScreen {
 
     private final ServerData serverData;
     private final boolean singleplayerMode;
-    /** In singleplayer mode, the world whose account is picked, or null for the default account. */
+    /** In singleplayer mode, the world whose account is picked. */
     private final String worldFolder;
     private final String worldName;
 
@@ -114,10 +112,6 @@ public class ServerAccountPickerScreen extends ParentAwareModularScreen {
         pendingStatusMessage = statusMessage;
         pendingSingleplayerMode = false;
         ClientGUI.open(new ServerAccountPickerScreen());
-    }
-
-    public static void openSingleplayer() {
-        openForWorld(null, null);
     }
 
     /** Picks the account one singleplayer world is played with. */
@@ -186,12 +180,6 @@ public class ServerAccountPickerScreen extends ParentAwareModularScreen {
                 ? WorldAuthSettings.account(worldDirectory, client.getAccountManager())
                 : null;
             selectedAccountId = worldAccount != null ? worldAccount.getId() : -1L;
-        } else if (singleplayerMode) {
-            title = GuiText.tr("wawelauth.gui.singleplayer_picker.title");
-            if (client != null) {
-                SingleplayerAccountPersistence.clearMissingSelection(client.getAccountManager());
-            }
-            selectedAccountId = SingleplayerAccountPersistence.getSelectedAccountId();
         } else {
             ext = (IServerDataExt) targetServerData;
             String serverName = targetServerData.serverName != null ? targetServerData.serverName
@@ -228,7 +216,7 @@ public class ServerAccountPickerScreen extends ParentAwareModularScreen {
         int listHeight = visibleRowCount * ACCOUNT_ENTRY_HEIGHT;
 
         int baseHeight = 12 + 14 + ACCOUNT_LIST_TOP_MARGIN * 2 + 18; // padding + title + list margins + manage btn
-        if (!singleplayerMode || worldDirectory != null) baseHeight += 21; // server proxy or LAN btn
+        baseHeight += 21; // server proxy or LAN btn
         if (showLocalAuthControls) baseHeight += 21; // manage local auth btn
         if (showLocalAuthActions) baseHeight += 23; // login/register row
         if (statusMessage != null && !statusMessage.isEmpty()) baseHeight += 14;
@@ -293,13 +281,6 @@ public class ServerAccountPickerScreen extends ParentAwareModularScreen {
                         selectedAccountId,
                         panel,
                         selected -> WorldAuthSettings.setAccount(worldDirectory, selected)));
-            } else if (singleplayerMode) {
-                accountList.child(
-                    buildAccountEntry(
-                        account,
-                        selectedAccountId,
-                        panel,
-                        selected -> SingleplayerAccountPersistence.setSelectedAccountId(selected.getId())));
             } else {
                 accountList.child(buildAccountEntry(account, selectedAccountId, panel, selected -> {
                     if (serverExt == null || serverDataRef == null) {
@@ -737,22 +718,13 @@ public class ServerAccountPickerScreen extends ParentAwareModularScreen {
         entry.widthRel(1.0f)
             .height(16);
 
-        // Without a choice, singleplayer uses the account the launcher started the game with, when there is one.
-        // A world without its own uses the singleplayer default, which may be that one.
-        WawelClient client = WawelClient.instance();
-        String automaticName;
-        String automaticKey;
-        if (worldDirectory != null) {
-            WorldAuthSettings.WorldAccount fallback = WorldAuthSettings.resolveAccount(null, client);
-            automaticName = fallback != null ? fallback.account.getProfileName() : null;
-            automaticKey = "wawelauth.gui.world_picker.default";
-        } else {
-            SessionBridge.AutomaticAccount automatic = client == null ? null
-                : client.getSessionBridge()
-                    .peekAccountForUnboundServer(null);
-            automaticName = automatic != null ? automatic.account.getProfileName() : null;
-            automaticKey = "wawelauth.gui.singleplayer_picker.automatic";
-        }
+        // A world without its own account uses the singleplayer default chosen before Wawel Auth 1.0.6, if any, else
+        // the account the launcher started the game with.
+        WorldAuthSettings.WorldAccount fallback = WorldAuthSettings.resolveAccount(null, WawelClient.instance());
+        String automaticName = fallback != null ? fallback.account.getProfileName() : null;
+        String automaticKey = fallback != null && fallback.source == WorldAuthSettings.AccountSource.DEFAULT
+            ? "wawelauth.gui.world_picker.default"
+            : "wawelauth.gui.singleplayer_picker.automatic";
         TextWidget<?> label = new TextWidget<>(
             automaticName != null ? IKey.str(GuiText.tr(automaticKey, automaticName))
                 : GuiText.key("wawelauth.gui.common.no_account_selected"));
@@ -772,11 +744,7 @@ public class ServerAccountPickerScreen extends ParentAwareModularScreen {
 
         entry.child(row);
         entry.onMousePressed(mouseButton -> {
-            if (worldDirectory != null) {
-                WorldAuthSettings.setAccount(worldDirectory, null);
-            } else {
-                SingleplayerAccountPersistence.clearSelection();
-            }
+            WorldAuthSettings.setAccount(worldDirectory, null);
             panel.closeIfOpen();
             return true;
         });
