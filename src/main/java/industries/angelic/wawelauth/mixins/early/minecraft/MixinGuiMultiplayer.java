@@ -27,16 +27,14 @@ import com.cleanroommc.modularui.factory.ClientGUI;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 
-import industries.angelic.angellib.util.FileUtil;
 import industries.angelic.angellib.util.GuiText;
-import industries.angelic.wawelauth.Config;
+import industries.angelic.wawelauth.WawelAuth;
 import industries.angelic.wawelauth.api.WawelFaceRendererClient;
 import industries.angelic.wawelauth.api.WawelTextureResolver;
 import industries.angelic.wawelauth.client.gui.AccountManagerScreen;
-import industries.angelic.wawelauth.client.gui.AuthButton;
 import industries.angelic.wawelauth.client.gui.ConfirmRemoveProviderScreen;
-import industries.angelic.wawelauth.client.gui.FolderIconButton;
 import industries.angelic.wawelauth.client.gui.IServerTooltipFaceHost;
+import industries.angelic.wawelauth.client.gui.LogoButton;
 import industries.angelic.wawelauth.wawelclient.ServerBindingPersistence;
 import industries.angelic.wawelauth.wawelclient.WawelClient;
 import industries.angelic.wawelauth.wawelclient.data.ClientProvider;
@@ -53,8 +51,6 @@ public abstract class MixinGuiMultiplayer extends GuiScreen implements IServerTo
     @Unique
     private static final int WAWELAUTH_ACCOUNTS_BUTTON_ID = 200;
     @Unique
-    private static final int WAWELAUTH_OPEN_FOLDER_BUTTON_ID = 201;
-    @Unique
     private static final int WAWELAUTH_TOOLTIP_FACE_SIZE = 8;
     @Unique
     private static final int WAWELAUTH_TOOLTIP_FACE_PADDING = 4;
@@ -62,7 +58,7 @@ public abstract class MixinGuiMultiplayer extends GuiScreen implements IServerTo
     private static final int WAWELAUTH_TOOLTIP_FACE_AREA_WIDTH = WAWELAUTH_TOOLTIP_FACE_SIZE
         + WAWELAUTH_TOOLTIP_FACE_PADDING;
     @Unique
-    private GuiButton wawelauth$openFolderButton;
+    private LogoButton wawelauth$logoButton;
     @Unique
     private UUID wawelauth$tooltipProfileUuid;
     @Unique
@@ -90,16 +86,8 @@ public abstract class MixinGuiMultiplayer extends GuiScreen implements IServerTo
 
     @Inject(method = "func_146794_g", at = @At("RETURN")) // GuiMultiplayer.createButtons
     private void wawelauth$addAccountsButton(CallbackInfo ci) {
-        int accountsWidth = AuthButton.preferredWidth(this.fontRendererObj);
-        int iconWidth = 20;
-        int gap = 2;
-        int x = this.width - 5 - (accountsWidth + gap + iconWidth);
-        this.buttonList.add(new AuthButton(WAWELAUTH_ACCOUNTS_BUTTON_ID, x, 5, 20));
-        this.wawelauth$openFolderButton = new FolderIconButton(
-            WAWELAUTH_OPEN_FOLDER_BUTTON_ID,
-            x + accountsWidth + gap,
-            5);
-        this.buttonList.add(this.wawelauth$openFolderButton);
+        this.wawelauth$logoButton = new LogoButton(WAWELAUTH_ACCOUNTS_BUTTON_ID, this.width - 5 - LogoButton.SIZE, 5);
+        this.buttonList.add(this.wawelauth$logoButton);
     }
 
     @Inject(method = "drawScreen", at = @At("HEAD"))
@@ -128,25 +116,13 @@ public abstract class MixinGuiMultiplayer extends GuiScreen implements IServerTo
         if (button.id == WAWELAUTH_ACCOUNTS_BUTTON_ID) {
             ClientGUI.open(new AccountManagerScreen());
             ci.cancel();
-            return;
-        }
-        if (button.id == WAWELAUTH_OPEN_FOLDER_BUTTON_ID) {
-            FileUtil.openFolder(Config.getConfigDir());
-            ci.cancel();
         }
     }
 
     @Inject(method = "drawScreen", at = @At("RETURN"))
-    private void wawelauth$drawFolderTooltip(int mouseX, int mouseY, float partialTicks, CallbackInfo ci) {
-        if (this.wawelauth$openFolderButton instanceof FolderIconButton) {
-            FolderIconButton folderButton = (FolderIconButton) this.wawelauth$openFolderButton;
-            if (folderButton.isMouseOver(mouseX, mouseY)) {
-                this.drawHoveringText(
-                    Collections.singletonList(GuiText.tr("wawelauth.gui.multiplayer.open_folder")),
-                    mouseX,
-                    mouseY,
-                    this.fontRendererObj);
-            }
+    private void wawelauth$drawLogoTooltip(int mouseX, int mouseY, float partialTicks, CallbackInfo ci) {
+        if (this.wawelauth$logoButton != null && this.wawelauth$logoButton.isHovered()) {
+            this.drawHoveringText(Collections.singletonList(WawelAuth.MODNAME), mouseX, mouseY, this.fontRendererObj);
         }
     }
 

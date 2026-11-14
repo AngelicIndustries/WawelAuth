@@ -1,12 +1,8 @@
 wawelauth.configgui.title=Wawel 认证
-wawelauth.gui.multiplayer.auth=认证
-wawelauth.gui.multiplayer.auth_fallback=认证
-wawelauth.gui.multiplayer.open_folder=打开 Wawel 认证文件夹
+wawelauth.gui.account_manager.open_folder=打开 Wawel 认证文件夹
 wawelauth.gui.multiplayer.remove_provider.title=是否同时移除本地认证服务器“%s”？
 wawelauth.gui.multiplayer.remove_provider.subtitle=没有其他服务器条目引用它。其账户也将被删除。
 wawelauth.gui.multiplayer.remove_provider.hint=对于共享 Wawel 认证数据的其他 Minecraft 实例，此操作也会将其移除。
-wawelauth.gui.singleplayer.account=账户
-wawelauth.gui.singleplayer.account_fallback=账户
 wawelauth.gui.singleplayer_picker.title=选择单人游戏账户
 
 wawelauth.gui.common.account=账户

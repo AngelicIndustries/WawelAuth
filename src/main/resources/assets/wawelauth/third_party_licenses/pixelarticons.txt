@@ -14,6 +14,9 @@ Local auth and clipboard icons:
 - https://github.com/halfmage/pixelarticons/blob/master/svg/hash.svg
 - https://github.com/halfmage/pixelarticons/blob/master/svg/clipboard-note.svg
 
+Folder icon:
+- https://github.com/halfmage/pixelarticons/blob/master/svg/folder.svg
+
 Password visibility icons:
 - https://github.com/halfmage/pixelarticons/blob/master/svg/eye.svg
 - https://github.com/halfmage/pixelarticons/blob/master/svg/eye-off.svg

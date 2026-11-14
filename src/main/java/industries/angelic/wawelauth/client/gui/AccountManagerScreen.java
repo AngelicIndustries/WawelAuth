@@ -48,6 +48,7 @@ import cpw.mods.fml.relauncher.SideOnly;
 import industries.angelic.angellib.gui.PanoramaOverlayRenderer;
 import industries.angelic.angellib.util.FileUtil;
 import industries.angelic.angellib.util.GuiText;
+import industries.angelic.wawelauth.Config;
 import industries.angelic.wawelauth.Tags;
 import industries.angelic.wawelauth.WawelAuth;
 import industries.angelic.wawelauth.api.SkinLayersHelper;
@@ -137,7 +138,11 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
     private static final int ACCOUNT_ACTION_ICON_HOVER_COLOR = 0xFFFFFFFF;
     private static final int PREVIEW_MODE_BUTTON_SIZE = 22;
     private static final int PREVIEW_MODE_ICON_SIZE = 18;
-    private static final int PREVIEW_LOGO_SIZE = 16;
+    /**
+     * The logo's pixels fill 60 of its 64; at this size and one pixel further out than the cape button, they line up
+     * with the cape button's box.
+     */
+    private static final int PREVIEW_LOGO_SIZE = 24;
     private static final int PREVIEW_MODE_BUTTON_EDGE_MARGIN = 3;
     private static final int PREVIEW_ENTITY_ROW_HEIGHT = PREVIEW_PANEL_HEIGHT - PREVIEW_MODE_BUTTON_SIZE
         - PREVIEW_MODE_BUTTON_EDGE_MARGIN;
@@ -202,6 +207,12 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
         ACCOUNT_ACTION_ICON_SIZE);
     private static final IDrawable ACCOUNT_ACTION_REGISTER_ICON_HOVER = centeredIcon(
         actionIcon(1, "register_hover", ACCOUNT_ACTION_ICON_HOVER_COLOR_TYPE),
+        ACCOUNT_ACTION_ICON_SIZE);
+    private static final IDrawable OPEN_FOLDER_ICON = centeredIcon(
+        folderIcon("open_folder", ACCOUNT_ACTION_ICON_COLOR_TYPE),
+        ACCOUNT_ACTION_ICON_SIZE);
+    private static final IDrawable OPEN_FOLDER_ICON_HOVER = centeredIcon(
+        folderIcon("open_folder_hover", ACCOUNT_ACTION_ICON_HOVER_COLOR_TYPE),
         ACCOUNT_ACTION_ICON_SIZE);
     private static final IDrawable ACCOUNT_ACTION_REAUTH_ICON = centeredIcon(
         actionIcon(2, "reauth", ACCOUNT_ACTION_ICON_COLOR_TYPE),
@@ -664,13 +675,18 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
                         .child(
                             new Row().widthRel(1.0f)
                                 .height(PREVIEW_MODE_BUTTON_SIZE)
-                                .mainAxisAlignment(Alignment.MainAxis.SPACE_BETWEEN)
-                                .child(
-                                    new Widget<>().size(PREVIEW_MODE_BUTTON_SIZE, PREVIEW_MODE_BUTTON_SIZE)
-                                        .margin(PREVIEW_MODE_BUTTON_EDGE_MARGIN, 0)
-                                        .background(LoadingSpinner.drawable(this::isPreviewLoading)))
+                                .mainAxisAlignment(Alignment.MainAxis.END)
                                 .child(previewModeButton()))
                         .child(new Widget<>().size(1, PREVIEW_MODE_BUTTON_EDGE_MARGIN)))
+                // The same distance from the bottom left corner as the cape button from the bottom right one.
+                .child(
+                    openFolderButton().left(PREVIEW_MODE_BUTTON_EDGE_MARGIN)
+                        .bottom(PREVIEW_MODE_BUTTON_EDGE_MARGIN))
+                .child(
+                    new Widget<>().size(ACCOUNT_ACTION_BUTTON_SIZE, ACCOUNT_ACTION_BUTTON_SIZE)
+                        .left(PREVIEW_MODE_BUTTON_EDGE_MARGIN + ACCOUNT_ACTION_BUTTON_SIZE)
+                        .bottom(PREVIEW_MODE_BUTTON_EDGE_MARGIN)
+                        .background(LoadingSpinner.drawable(this::isPreviewLoading)))
                 .child(previewLogo()))
             .child(new Widget<>().size(1, ACCOUNT_DETAIL_TOP_OFFSET))
             .child(new TextWidget<>(IKey.dynamic(() -> {
@@ -1087,11 +1103,22 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
 
     /** Wawel Auth's logo in the preview's top right corner, across from the loading spinner, with the version. */
     private static Widget<?> previewLogo() {
-        return new Widget<>().size(PREVIEW_MODE_BUTTON_SIZE, PREVIEW_MODE_BUTTON_SIZE)
-            .top(PREVIEW_MODE_BUTTON_EDGE_MARGIN)
-            .right(PREVIEW_MODE_BUTTON_EDGE_MARGIN)
+        return new Widget<>().size(PREVIEW_LOGO_SIZE, PREVIEW_LOGO_SIZE)
+            .top(PREVIEW_MODE_BUTTON_EDGE_MARGIN - 1)
+            .right(PREVIEW_MODE_BUTTON_EDGE_MARGIN - 1)
             .overlay(PREVIEW_LOGO)
             .addTooltipLine(WawelAuth.MODNAME + " v" + Tags.VERSION);
+    }
+
+    /** Opens the folder with Wawel Auth's accounts and settings, shared between instances by default. */
+    private static ButtonWidget<?> openFolderButton() {
+        return accountActionButton(
+            OPEN_FOLDER_ICON,
+            OPEN_FOLDER_ICON_HOVER,
+            "wawelauth.gui.account_manager.open_folder").onMousePressed(mouseButton -> {
+                FileUtil.openFolder(Config.getConfigDir());
+                return true;
+            });
     }
 
     private static Widget<?> actionGap() {
@@ -1110,6 +1137,16 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
                 ACCOUNT_ACTION_ICON_SOURCE_SIZE)
             .nonOpaque()
             .name("wawelauth:account_action_" + name)
+            .build();
+    }
+
+    private static IDrawable folderIcon(String name, ColorType colorType) {
+        return UITexture.builder()
+            .location("wawelauth", "gui/folder")
+            .fullImage()
+            .colorType(colorType)
+            .nonOpaque()
+            .name("wawelauth:" + name)
             .build();
     }
 

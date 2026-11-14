@@ -1,13 +1,8 @@
 wawelauth.configgui.title=Wawel Auth
-wawelauth.gui.multiplayer.auth=Auth
-wawelauth.gui.multiplayer.auth_fallback=Auth
-wawelauth.gui.multiplayer.open_folder=Open Wawel Auth folder
+wawelauth.gui.account_manager.open_folder=Open Wawel Auth folder
 wawelauth.gui.multiplayer.remove_provider.title=Also remove local provider '%s'?
 wawelauth.gui.multiplayer.remove_provider.subtitle=No other server entries reference it. Its accounts will be deleted too.
 wawelauth.gui.multiplayer.remove_provider.hint=This will also remove it for any Minecraft instance that shares Wawel Auth data.
-wawelauth.gui.singleplayer.account=Account
-wawelauth.gui.singleplayer.account_fallback=Account
-wawelauth.gui.singleplayer.choose_account=Click Account to change
 wawelauth.gui.singleplayer_picker.title=Select Singleplayer Account
 wawelauth.gui.singleplayer_picker.automatic=Automatic: %s
 wawelauth.gui.lan_providers.button=Who Can Join over LAN...

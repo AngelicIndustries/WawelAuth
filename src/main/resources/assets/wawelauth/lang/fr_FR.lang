@@ -1,9 +1,5 @@
 wawelauth.configgui.title=Wawel Auth
-wawelauth.gui.multiplayer.auth=Auth
-wawelauth.gui.multiplayer.auth_fallback=Auth
-wawelauth.gui.multiplayer.open_folder=Ouvrir le dossier Wawel Auth
-wawelauth.gui.singleplayer.account=Compte
-wawelauth.gui.singleplayer.account_fallback=Compte
+wawelauth.gui.account_manager.open_folder=Ouvrir le dossier Wawel Auth
 wawelauth.gui.singleplayer_picker.title=Sélectionner le compte solo
 
 wawelauth.gui.common.account=compte
