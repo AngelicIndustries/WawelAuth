@@ -5,6 +5,7 @@ import java.lang.reflect.Field;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,6 +19,7 @@ import net.minecraft.network.play.server.S3FPacketCustomPayload;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.integrated.IntegratedServer;
 
+import com.google.gson.JsonObject;
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.exceptions.AuthenticationUnavailableException;
 import com.mojang.authlib.minecraft.MinecraftSessionService;
@@ -68,9 +70,7 @@ public final class LanHost {
             if (!angelLibPresent) return null;
             IntegratedServer server = openServer();
             if (server == null) return null;
-            return new S00PacketServerInfoModifyService.KeyValue(
-                WawelAuth.MODID,
-                WawelPingPayload.buildServerPayload(capabilities(server), null));
+            return new S00PacketServerInfoModifyService.KeyValue(WawelAuth.MODID, capabilitiesPayload(server));
         });
     }
 
@@ -258,7 +258,7 @@ public final class LanHost {
     }
 
     private static List<ClientProvider> acceptedProviders(IntegratedServer server) {
-        return LanProviders.accepted(worldDirectory(server), hostProvider());
+        return LanProviders.accepted(worldDirectory(server));
     }
 
     private static File worldDirectory(IntegratedServer server) {
@@ -284,19 +284,40 @@ public final class LanHost {
     }
 
     /** The world as a Wawel Auth server that accepts the chosen providers and has nothing of its own. */
-    private static ServerConfig capabilities(IntegratedServer server) {
+    private static ServerConfig capabilities(List<ClientProvider> accepted) {
         ServerConfig config = new ServerConfig();
         config.setWawelAuthEnabled(true);
         config.setLocalAuthEnabled(false);
-        config.setFallbackServers(toFallbacks(acceptedProviders(server)));
+        config.setFallbackServers(toFallbacks(accepted));
         return config;
     }
 
     /** Without the name lookup a server offers: this world doesn't answer it. */
     private static byte[] encodeCapabilities(IntegratedServer server) {
-        return WawelPingPayload.buildServerPayload(capabilities(server), null)
-            .toString()
+        return capabilitiesPayload(server).toString()
             .getBytes(StandardCharsets.UTF_8);
+    }
+
+    /**
+     * The accepted providers, and the host's own provider for drawing the host's skin even when its players may not
+     * join: it only goes into the descriptors, which the joining game trusts for skins, not into what it may join with.
+     */
+    private static JsonObject capabilitiesPayload(IntegratedServer server) {
+        List<ClientProvider> accepted = acceptedProviders(server);
+        JsonObject payload = WawelPingPayload.buildServerPayload(capabilities(accepted), null);
+        ClientProvider host = hostProvider();
+        if (LanProviders.canVouchForPlayers(host) && accepted.stream()
+            .noneMatch(
+                provider -> provider.getName() != null && provider.getName()
+                    .equalsIgnoreCase(host.getName()))) {
+            JsonObject descriptor = WawelPingPayload
+                .buildAcceptedProviderDescriptor(toFallbacks(Collections.singletonList(host)).get(0));
+            if (descriptor != null && payload.has(WawelPingPayload.KEY_ACCEPTED_PROVIDER_DESCRIPTORS)) {
+                payload.getAsJsonArray(WawelPingPayload.KEY_ACCEPTED_PROVIDER_DESCRIPTORS)
+                    .add(descriptor);
+            }
+        }
+        return payload;
     }
 
     private static List<FallbackServer> toFallbacks(List<ClientProvider> providers) {

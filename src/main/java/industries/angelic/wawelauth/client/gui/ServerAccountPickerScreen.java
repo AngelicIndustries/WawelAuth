@@ -369,10 +369,9 @@ public class ServerAccountPickerScreen extends ParentAwareModularScreen {
         serverProxyBtn.setEnabled(!singleplayerMode && serverProxyDialogHandler != null);
 
         // Whose players may join, decided with the account the world is played with at the time.
-        final IPanelHandler lanDialogHandler = worldDirectory != null ? IPanelHandler.simple(
-            panel,
-            (parent, player) -> LanProvidersDialog.build(worldDirectory, worldHostProvider(worldDirectory)),
-            true) : null;
+        final IPanelHandler lanDialogHandler = worldDirectory != null
+            ? IPanelHandler.simple(panel, (parent, player) -> LanProvidersDialog.build(worldDirectory), true)
+            : null;
         ButtonWidget<?> lanBtn = new ButtonWidget<>();
         lanBtn.widthRelOffset(1.0f, CONTENT_WIDTH_OFFSET)
             .height(18)
@@ -812,13 +811,6 @@ public class ServerAccountPickerScreen extends ParentAwareModularScreen {
             return true;
         });
         return entry;
-    }
-
-    private static ClientProvider worldHostProvider(File worldDirectory) {
-        WawelClient client = WawelClient.instance();
-        WorldAuthSettings.WorldAccount account = WorldAuthSettings.resolveAccount(worldDirectory, client);
-        return account != null && client != null ? client.resolveProviderByName(account.account.getProviderName())
-            : null;
     }
 
     private static boolean notBlank(String value) {

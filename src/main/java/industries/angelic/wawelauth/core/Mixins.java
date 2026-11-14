@@ -152,6 +152,34 @@ public class Mixins extends AngelMixins {
             .phase(MixinUtil.Phase.EARLY)
             .side(MiscUtil.Side.CLIENT)
             .build();
+        registry.mixin("AccessorIntegratedServer")
+            .phase(MixinUtil.Phase.EARLY)
+            .side(MiscUtil.Side.CLIENT)
+            .build();
+        registry.mixin("AccessorNetworkSystemEndpoints")
+            .phase(MixinUtil.Phase.EARLY)
+            .side(MiscUtil.Side.CLIENT)
+            .build();
+        registry.mixin("AccessorServerConfigurationManagerGameType")
+            .phase(MixinUtil.Phase.EARLY)
+            .side(MiscUtil.Side.CLIENT)
+            .build();
+        registry.mixin("MixinIntegratedServerLan")
+            .phase(MixinUtil.Phase.EARLY)
+            .side(MiscUtil.Side.CLIENT)
+            .build();
+        registry.mixin("MixinGuiNewChatE4mc")
+            .phase(MixinUtil.Phase.EARLY)
+            .side(MiscUtil.Side.CLIENT)
+            .build();
+        registry.mixin("MixinGuiShareToLan")
+            .phase(MixinUtil.Phase.EARLY)
+            .side(MiscUtil.Side.CLIENT)
+            .build();
+        registry.mixin("MixinGuiIngameMenuLan")
+            .phase(MixinUtil.Phase.EARLY)
+            .side(MiscUtil.Side.CLIENT)
+            .build();
         registry.mixin("MixinNettyBootstrapBlockedServers")
             .phase(MixinUtil.Phase.EARLY)
             .side(MiscUtil.Side.CLIENT)

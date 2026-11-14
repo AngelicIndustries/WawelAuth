@@ -189,7 +189,7 @@ public final class WawelPingPayload {
         }
     }
 
-    private static JsonObject buildAcceptedProviderDescriptor(FallbackServer fallback) {
+    public static JsonObject buildAcceptedProviderDescriptor(FallbackServer fallback) {
         if (fallback == null) {
             return null;
         }

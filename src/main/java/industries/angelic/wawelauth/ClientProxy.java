@@ -24,6 +24,7 @@ import industries.angelic.wawelauth.wawelclient.ClientStartupExtensions;
 import industries.angelic.wawelauth.wawelclient.WawelClient;
 import industries.angelic.wawelauth.wawelclient.WawelPingClientHooks;
 import industries.angelic.wawelauth.wawelclient.lan.LanHost;
+import industries.angelic.wawelauth.wawelclient.lan.LanWorld;
 import industries.angelic.wawelauth.wawelcore.config.LocalConfig;
 
 public class ClientProxy extends CommonProxy {
@@ -53,6 +54,7 @@ public class ClientProxy extends CommonProxy {
         WawelClient.start(dataDir);
         WawelPingClientHooks.register();
         LanHost.registerPingHandler();
+        LanWorld.register();
         GuiTransitionScheduler.register();
         AnimatedCapeClientHandler.register();
         SkinResolverClientHandler.register();

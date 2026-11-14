@@ -15,6 +15,7 @@ import com.cleanroommc.modularui.api.drawable.IKey;
 import com.cleanroommc.modularui.api.layout.IViewport;
 import com.cleanroommc.modularui.api.layout.IViewportStack;
 import com.cleanroommc.modularui.api.widget.IWidget;
+import com.cleanroommc.modularui.screen.ModularPanel;
 import com.cleanroommc.modularui.utils.Alignment;
 import com.cleanroommc.modularui.utils.HoveredWidgetList;
 import com.cleanroommc.modularui.widgets.ButtonWidget;
@@ -27,7 +28,6 @@ import com.cleanroommc.modularui.widgets.layout.Row;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import industries.angelic.angellib.util.GuiText;
-import industries.angelic.wawelauth.wawelclient.data.ClientProvider;
 import industries.angelic.wawelauth.wawelclient.lan.LanProviders;
 
 /** Picks whose players may join a singleplayer world once it's opened to LAN. */
@@ -43,10 +43,15 @@ final class LanProvidersDialog {
 
     private LanProvidersDialog() {}
 
-    /** The providers of a world played with an account of {@code hostProvider}. */
-    static Dialog<Boolean> build(File worldDirectory, ClientProvider hostProvider) {
+    /** The list as a dialog over the account picker. */
+    static Dialog<Boolean> build(File worldDirectory) {
         Dialog<Boolean> dialog = new Dialog<>("wawelauth_lan_providers");
-        List<LanProviders.Row> rows = LanProviders.rows(worldDirectory, hostProvider);
+        return fill(dialog, worldDirectory, dialog::closeIfOpen);
+    }
+
+    /** Fills a panel with a world's list of providers, the offline players tick box and Done. */
+    static <T extends ModularPanel> T fill(T panel, File worldDirectory, Runnable done) {
+        List<LanProviders.Row> rows = LanProviders.rows(worldDirectory);
         int visibleRows = Math.max(1, Math.min(rows.size(), MAX_VISIBLE_ROWS));
 
         ListWidget<IWidget, ?> list = new ProviderList();
@@ -61,7 +66,7 @@ final class LanProvidersDialog {
         ButtonWidget<?> doneButton = new ButtonWidget<>();
         doneButton.size(70, 18)
             .onMousePressed(mouseButton -> {
-                dialog.closeIfOpen();
+                done.run();
                 return true;
             });
         WawelAuthStyle.textButton(doneButton, 62, "gui.done");
@@ -86,10 +91,10 @@ final class LanProvidersDialog {
                     .mainAxisAlignment(Alignment.MainAxis.CENTER)
                     .child(doneButton));
 
-        WawelAuthStyle.dialog(dialog);
-        dialog.size(WIDTH, PADDING * 2 + 14 + 8 + visibleRows * ROW_HEIGHT + ROW_HEIGHT + 4 + 18)
+        WawelAuthStyle.dialog(panel);
+        panel.size(WIDTH, PADDING * 2 + 14 + 8 + visibleRows * ROW_HEIGHT + ROW_HEIGHT + 4 + 18)
             .child(root);
-        return dialog;
+        return panel;
     }
 
     private static ButtonWidget<?> providerRow(File worldDirectory, LanProviders.Row row) {
@@ -101,16 +106,12 @@ final class LanProvidersDialog {
         WawelAuthStyle.rowButton(button, () -> accepted[0]);
         button.widthRel(1.0f)
             .height(ROW_HEIGHT)
-            .overlay(checkboxRow(label, () -> accepted[0], row.hostAccount))
+            .overlay(checkboxRow(label, () -> accepted[0]))
             .onMousePressed(mouseButton -> {
-                if (row.hostAccount) return true;
                 accepted[0] = !accepted[0];
                 LanProviders.setAccepted(worldDirectory, row.provider, accepted[0]);
                 return true;
             });
-        if (row.hostAccount) {
-            button.addTooltipLine(GuiText.tr("wawelauth.gui.lan_providers.host_account"));
-        }
         return button;
     }
 
@@ -124,7 +125,7 @@ final class LanProvidersDialog {
         WawelAuthStyle.rowButton(button, () -> letIn[0]);
         button.widthRel(1.0f)
             .height(ROW_HEIGHT)
-            .overlay(checkboxRow(label, () -> letIn[0], false))
+            .overlay(checkboxRow(label, () -> letIn[0]))
             .addTooltipLine(GuiText.tr("wawelauth.gui.lan_providers.offline_players_tooltip"))
             .onMousePressed(mouseButton -> {
                 letIn[0] = !letIn[0];
@@ -135,11 +136,11 @@ final class LanProvidersDialog {
     }
 
     /** A tick box and the provider's name, left-aligned in the row. */
-    private static IDrawable checkboxRow(String label, BooleanSupplier ticked, boolean locked) {
+    private static IDrawable checkboxRow(String label, BooleanSupplier ticked) {
         return (context, x, y, width, height, widgetTheme) -> {
             int boxX = x + 4;
             int boxY = y + (height - BOX_SIZE) / 2;
-            int border = locked ? WawelAuthStyle.TEXT_SECONDARY : WawelAuthStyle.TEXT_PRIMARY;
+            int border = WawelAuthStyle.TEXT_PRIMARY;
             Gui.drawRect(boxX, boxY, boxX + BOX_SIZE, boxY + BOX_SIZE, border);
             Gui.drawRect(boxX + 1, boxY + 1, boxX + BOX_SIZE - 1, boxY + BOX_SIZE - 1, 0xFF1A1A1A);
             if (ticked.getAsBoolean()) {

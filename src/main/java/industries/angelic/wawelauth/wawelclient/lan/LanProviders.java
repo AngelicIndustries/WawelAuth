@@ -14,8 +14,8 @@ import industries.angelic.wawelauth.wawelclient.data.ProviderType;
 
 /**
  * Which providers' players may join a world opened to LAN, chosen per world. The providers Wawel Auth ships (and
- * those a pack adds to default-providers) start ticked, the ones a player added start unticked, and the provider of
- * the host's own account is always accepted. Players no accepted provider verifies are turned away unless the world
+ * those a pack adds to default-providers) start ticked and the ones a player added start unticked; the host joins
+ * through the game itself and isn't checked. Players no accepted provider verifies are turned away unless the world
  * lets them in as offline players, as vanilla LAN worlds do. Choices live in the world's {@link WorldAuthSettings}.
  */
 public final class LanProviders {
@@ -27,18 +27,15 @@ public final class LanProviders {
 
         public final ClientProvider provider;
         public final boolean accepted;
-        /** The host plays with this provider's account, so it can't be unticked. */
-        public final boolean hostAccount;
 
-        Row(ClientProvider provider, boolean accepted, boolean hostAccount) {
+        Row(ClientProvider provider, boolean accepted) {
             this.provider = provider;
             this.accepted = accepted;
-            this.hostAccount = hostAccount;
         }
     }
 
     /** Every provider whose players could join, in the client's order. */
-    public static synchronized List<Row> rows(File worldDirectory, ClientProvider hostProvider) {
+    public static synchronized List<Row> rows(File worldDirectory) {
         List<Row> rows = new ArrayList<>();
         WawelClient client = WawelClient.instance();
         if (client == null) {
@@ -50,17 +47,15 @@ public final class LanProviders {
         for (ClientProvider provider : client.getProviderDAO()
             .listAll()) {
             if (!canVouchForPlayers(provider)) continue;
-            boolean hostAccount = sameProvider(provider, hostProvider);
             Boolean chosen = choices.get(key(provider));
-            boolean accepted = hostAccount || (chosen != null ? chosen : startsAccepted(provider));
-            rows.add(new Row(provider, accepted, hostAccount));
+            rows.add(new Row(provider, chosen != null ? chosen : startsAccepted(provider)));
         }
         return rows;
     }
 
-    public static List<ClientProvider> accepted(File worldDirectory, ClientProvider hostProvider) {
+    public static List<ClientProvider> accepted(File worldDirectory) {
         List<ClientProvider> accepted = new ArrayList<>();
-        for (Row row : rows(worldDirectory, hostProvider)) {
+        for (Row row : rows(worldDirectory)) {
             if (row.accepted) accepted.add(row.provider);
         }
         return accepted;
@@ -98,13 +93,6 @@ public final class LanProviders {
     static boolean canVouchForPlayers(ClientProvider provider) {
         return provider != null && provider.getType() != ProviderType.BUILTIN
             && StringUtil.trimToNull(provider.getSessionServerUrl()) != null;
-    }
-
-    static boolean sameProvider(ClientProvider a, ClientProvider b) {
-        return a != null && b != null
-            && a.getName() != null
-            && a.getName()
-                .equalsIgnoreCase(b.getName());
     }
 
     private static String key(ClientProvider provider) {
