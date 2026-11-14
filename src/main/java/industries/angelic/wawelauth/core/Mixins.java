@@ -98,6 +98,10 @@ public class Mixins extends AngelMixins {
             .phase(MixinUtil.Phase.EARLY)
             .side(MiscUtil.Side.CLIENT)
             .build();
+        registry.mixin("MixinFMLClientHandlerChooseAccount")
+            .phase(MixinUtil.Phase.EARLY)
+            .side(MiscUtil.Side.CLIENT)
+            .build();
         registry.mixin("MixinNetworkManagerGameplayProxy")
             .phase(MixinUtil.Phase.EARLY)
             .side(MiscUtil.Side.CLIENT)

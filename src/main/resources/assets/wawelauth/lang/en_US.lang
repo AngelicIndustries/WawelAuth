@@ -160,6 +160,7 @@ wawelauth.gui.server_picker.proxy_status_ok=Reachable.
 wawelauth.gui.server_picker.proxy_server_ok=Reached %s.
 wawelauth.gui.server_picker.proxy_socks_only=Game server proxy currently supports SOCKS only.
 wawelauth.gui.server_picker.status.bound=Bound to this server as %s
+wawelauth.gui.server_picker.join_title=Join %s as
 wawelauth.gui.server_picker.title=Select Account for %s
 wawelauth.gui.server_picker.tooltip.account=Account: %s
 wawelauth.gui.server_picker.tooltip.provider=Provider: %s

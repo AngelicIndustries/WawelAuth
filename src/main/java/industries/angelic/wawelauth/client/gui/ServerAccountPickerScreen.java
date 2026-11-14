@@ -12,6 +12,7 @@ import java.util.function.IntSupplier;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
+import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.multiplayer.ServerAddress;
 import net.minecraft.client.multiplayer.ServerData;
 
@@ -38,6 +39,7 @@ import com.cleanroommc.modularui.widgets.TextWidget;
 import com.cleanroommc.modularui.widgets.layout.Column;
 import com.cleanroommc.modularui.widgets.layout.Row;
 
+import cpw.mods.fml.client.FMLClientHandler;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import industries.angelic.angellib.util.GuiText;
@@ -96,12 +98,15 @@ public class ServerAccountPickerScreen extends ParentAwareModularScreen {
     private static boolean pendingSingleplayerMode;
     private static String pendingWorldFolder;
     private static String pendingWorldName;
+    private static GuiScreen pendingJoinParent;
 
     private final ServerData serverData;
     private final boolean singleplayerMode;
     /** In singleplayer mode, the world whose account is picked. */
     private final String worldFolder;
     private final String worldName;
+    /** When joining the server needs an account picked first: the screen the join started from. */
+    private final GuiScreen joinParent;
 
     public static void open(ServerData serverData) {
         open(serverData, null);
@@ -111,6 +116,20 @@ public class ServerAccountPickerScreen extends ParentAwareModularScreen {
         pendingServerData = serverData;
         pendingStatusMessage = statusMessage;
         pendingSingleplayerMode = false;
+        ClientGUI.open(new ServerAccountPickerScreen());
+    }
+
+    /**
+     * Asks for an account before joining a server that has none bound and no automatic one, though the player has
+     * accounts it accepts. Picking one binds it and goes on joining; Cancel goes back.
+     */
+    public static void openForJoin(GuiScreen parent, ServerData serverData) {
+        pendingServerData = serverData;
+        pendingStatusMessage = null;
+        pendingSingleplayerMode = false;
+        pendingWorldFolder = null;
+        pendingWorldName = null;
+        pendingJoinParent = parent;
         ClientGUI.open(new ServerAccountPickerScreen());
     }
 
@@ -131,6 +150,8 @@ public class ServerAccountPickerScreen extends ParentAwareModularScreen {
         this.singleplayerMode = pendingSingleplayerMode;
         this.worldFolder = pendingWorldFolder;
         this.worldName = pendingWorldName;
+        this.joinParent = pendingJoinParent;
+        pendingJoinParent = null;
         pendingServerData = null;
         pendingSingleplayerMode = false;
         pendingWorldFolder = null;
@@ -142,6 +163,7 @@ public class ServerAccountPickerScreen extends ParentAwareModularScreen {
         boolean singleplayerMode = pendingSingleplayerMode || this.singleplayerMode;
         String worldFolder = pendingWorldFolder != null ? pendingWorldFolder : this.worldFolder;
         String worldName = pendingWorldName != null ? pendingWorldName : this.worldName;
+        GuiScreen joinParent = pendingJoinParent != null ? pendingJoinParent : this.joinParent;
         File worldDirectory = singleplayerMode && worldFolder != null ? WorldAuthSettings.worldDirectory(worldFolder)
             : null;
         ServerData targetServerData = pendingServerData != null ? pendingServerData : serverData;
@@ -184,7 +206,9 @@ public class ServerAccountPickerScreen extends ParentAwareModularScreen {
             ext = (IServerDataExt) targetServerData;
             String serverName = targetServerData.serverName != null ? targetServerData.serverName
                 : GuiText.tr("wawelauth.gui.common.server");
-            title = GuiText.tr("wawelauth.gui.server_picker.title", serverName);
+            title = GuiText.tr(
+                joinParent != null ? "wawelauth.gui.server_picker.join_title" : "wawelauth.gui.server_picker.title",
+                serverName);
 
             ServerCapabilities capabilities = ext.getWawelCapabilities();
             localAuthCapabilities = ServerBindingPersistence.getEffectiveLocalAuthCapabilities(targetServerData);
@@ -217,6 +241,7 @@ public class ServerAccountPickerScreen extends ParentAwareModularScreen {
 
         int baseHeight = 12 + 14 + ACCOUNT_LIST_TOP_MARGIN * 2 + 18; // padding + title + list margins + manage btn
         baseHeight += 21; // server proxy or LAN btn
+        if (joinParent != null) baseHeight += 21; // cancel btn
         if (showLocalAuthControls) baseHeight += 21; // manage local auth btn
         if (showLocalAuthActions) baseHeight += 23; // login/register row
         if (statusMessage != null && !statusMessage.isEmpty()) baseHeight += 14;
@@ -290,6 +315,12 @@ public class ServerAccountPickerScreen extends ParentAwareModularScreen {
                     serverExt.setWawelProviderName(selected.getProviderName());
                     ServerBindingPersistence.markServerBindingOrigin(serverDataRef);
                     ServerBindingPersistence.persistServerSelection(serverDataRef);
+                    if (joinParent != null) {
+                        GuiTransitionScheduler.transition(
+                            panel,
+                            () -> FMLClientHandler.instance()
+                                .connectToServer(joinParent, serverDataRef));
+                    }
                 }));
             }
         }
@@ -371,6 +402,18 @@ public class ServerAccountPickerScreen extends ParentAwareModularScreen {
         }
         if (!singleplayerMode) {
             content.child(serverProxyBtn);
+        }
+        if (joinParent != null) {
+            ButtonWidget<?> cancelBtn = new ButtonWidget<>();
+            cancelBtn.widthRelOffset(1.0f, CONTENT_WIDTH_OFFSET)
+                .height(18)
+                .margin(0, 3, 0, 0)
+                .onMousePressed(mouseButton -> {
+                    panel.closeIfOpen();
+                    return true;
+                });
+            WawelAuthStyle.textButton(cancelBtn, 180, "gui.cancel");
+            content.child(cancelBtn);
         }
         if (worldDirectory != null) {
             content.child(lanBtn);

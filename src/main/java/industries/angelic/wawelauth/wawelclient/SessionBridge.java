@@ -315,6 +315,19 @@ public class SessionBridge {
         return findSingleMatchingAccountId(capabilities);
     }
 
+    /** Whether any saved account is one the server says it accepts. */
+    public boolean hasAcceptedAccount(ServerCapabilities capabilities) {
+        AcceptedAccounts accepted = AcceptedAccounts.of(capabilities);
+        if (accepted == null) return false;
+        for (ClientAccount account : accountDAO.listAll()) {
+            ClientProvider provider = providerDAO.findByName(account.getProviderName());
+            if (provider != null && accepted.accepts(provider)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /**
      * The account {@link #findAccountForUnboundServer} would join this server with, for showing it beforehand, or
      * null. Read again after account changes and every few seconds, so it can be asked every frame.
@@ -376,11 +389,14 @@ public class SessionBridge {
 
         private final String fingerprint;
         private final Set<String> authUrls;
+        private final Set<String> authHosts;
         private final Set<String> providerNames;
 
-        private AcceptedAccounts(String fingerprint, Set<String> authUrls, Set<String> providerNames) {
+        private AcceptedAccounts(String fingerprint, Set<String> authUrls, Set<String> authHosts,
+            Set<String> providerNames) {
             this.fingerprint = fingerprint;
             this.authUrls = authUrls;
+            this.authHosts = authHosts;
             this.providerNames = providerNames;
         }
 
@@ -391,10 +407,15 @@ public class SessionBridge {
             String fingerprint = normalizeFingerprint(capabilities.getLocalAuthPublicKeyFingerprint());
 
             Set<String> authUrls = new HashSet<>();
+            Set<String> authHosts = new HashSet<>();
             for (String url : capabilities.getAcceptedAuthServerUrls()) {
                 String normalized = WawelPingPayload.normalizeUrl(url);
                 if (normalized != null) {
                     authUrls.add(normalized);
+                    String host = extractHost(normalized);
+                    if (host != null) {
+                        authHosts.add(host);
+                    }
                 }
             }
 
@@ -411,15 +432,24 @@ public class SessionBridge {
             if (fingerprint == null && authUrls.isEmpty() && providerNames.isEmpty()) {
                 return null;
             }
-            return new AcceptedAccounts(fingerprint, authUrls, providerNames);
+            return new AcceptedAccounts(fingerprint, authUrls, authHosts, providerNames);
         }
 
+        /**
+         * The same match as the providers a server is shown to accept: its local auth key, an auth address, a host
+         * (a server may advertise another path on the provider's host than the provider uses), or the name.
+         */
         boolean accepts(ClientProvider provider) {
             if (fingerprint != null && fingerprint.equals(normalizeFingerprint(provider.getPublicKeyFingerprint()))) {
                 return true;
             }
             String authUrl = WawelPingPayload.normalizeUrl(provider.getAuthServerUrl());
             if (authUrl != null && authUrls.contains(authUrl)) {
+                return true;
+            }
+            if (matchesAnyAcceptedHost(authHosts, extractHost(authUrl))
+                || matchesAnyAcceptedHost(authHosts, extractHost(provider.getSessionServerUrl()))
+                || matchesAnyAcceptedHost(authHosts, extractHost(provider.getApiRoot()))) {
                 return true;
             }
             // Compat for older payloads that only have names
@@ -692,46 +722,10 @@ public class SessionBridge {
         List<ClientProvider> resolved = new ArrayList<>();
         LinkedHashSet<String> seen = new LinkedHashSet<>();
 
-        Set<String> acceptedAuthUrls = new HashSet<>();
-        Set<String> acceptedAuthHosts = new HashSet<>();
-        for (String url : capabilities.getAcceptedAuthServerUrls()) {
-            String normalized = WawelPingPayload.normalizeUrl(url);
-            if (normalized != null) {
-                acceptedAuthUrls.add(normalized);
-                String host = extractHost(normalized);
-                if (host != null) {
-                    acceptedAuthHosts.add(host);
-                }
-            }
-        }
-
-        Set<String> acceptedProviderNames = new HashSet<>();
-        for (String providerName : capabilities.getAcceptedProviderNames()) {
-            if (providerName != null && !providerName.trim()
-                .isEmpty()) {
-                acceptedProviderNames.add(
-                    providerName.trim()
-                        .toLowerCase());
-            }
-        }
-
-        String localFingerprint = normalizeFingerprint(capabilities.getLocalAuthPublicKeyFingerprint());
-
-        if (providerDAO != null) {
+        AcceptedAccounts accepted = AcceptedAccounts.of(capabilities);
+        if (accepted != null && providerDAO != null) {
             for (ClientProvider provider : providerDAO.listAll()) {
-                String providerAuthUrl = WawelPingPayload.normalizeUrl(provider.getAuthServerUrl());
-                String providerFingerprint = normalizeFingerprint(provider.getPublicKeyFingerprint());
-                String providerName = provider.getName();
-                boolean matchedByHost = matchesAnyAcceptedHost(acceptedAuthHosts, extractHost(providerAuthUrl))
-                    || matchesAnyAcceptedHost(acceptedAuthHosts, extractHost(provider.getSessionServerUrl()))
-                    || matchesAnyAcceptedHost(acceptedAuthHosts, extractHost(provider.getApiRoot()));
-                boolean matchedByName = providerName != null && acceptedProviderNames.contains(
-                    providerName.trim()
-                        .toLowerCase());
-
-                if ((providerAuthUrl != null && acceptedAuthUrls.contains(providerAuthUrl)) || matchedByHost
-                    || (localFingerprint != null && localFingerprint.equals(providerFingerprint))
-                    || matchedByName) {
+                if (accepted.accepts(provider)) {
                     addTrustedProvider(resolved, seen, provider);
                 }
             }

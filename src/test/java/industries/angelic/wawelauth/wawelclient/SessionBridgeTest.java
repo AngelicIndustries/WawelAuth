@@ -148,6 +148,22 @@ public class SessionBridgeTest {
         Assert.assertTrue(accounts.bridge.peekAccountForUnboundServer(capabilities).isDefault);
     }
 
+    @Test
+    public void serverAdvertisingAnotherPathOnAProvidersHostAcceptsItsAccounts() {
+        // As a server whose fallback names Drasl's account address while the provider uses its authlib-injector one.
+        InMemoryProviderDao providerDao = new InMemoryProviderDao();
+        providerDao.create(provider("Alpha", ALPHA_AUTH));
+        providerDao.create(provider("Drasl", "https://drasl.example/authlib-injector/authserver"));
+        InMemoryAccountDao accountDao = new InMemoryAccountDao();
+        accountDao.create(account("Alpha", UUID.randomUUID()));
+        long drasl = accountDao.create(account("Drasl", UUID.randomUUID()));
+        SessionBridge bridge = new SessionBridge(null, providerDao, accountDao, null, launcherSession("token"));
+
+        Assert.assertEquals(
+            drasl,
+            bridge.findAccountForUnboundServer(advertisedCapabilities("https://drasl.example/account")));
+    }
+
     private static final String ALPHA_AUTH = "https://alpha.example/authserver";
     private static final String BETA_AUTH = "https://beta.example/authserver";
 
