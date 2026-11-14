@@ -27,6 +27,7 @@ import industries.angelic.wawelauth.WawelAuth;
 import industries.angelic.wawelauth.wawelclient.data.ProviderProxySettings;
 import industries.angelic.wawelauth.wawelclient.data.ProviderProxyType;
 import industries.angelic.wawelauth.wawelclient.http.ProviderProxySupport;
+import industries.angelic.wawelauth.wawelcore.config.ClientConfig;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ChannelFactory;
 import io.netty.channel.Channel;
@@ -338,9 +339,13 @@ public final class ServerConnectionProxySupport {
     /**
      * Mojang's blocked-server check (patchy, which every 1.7.10 launcher loads as {@code com.mojang:netty}) replaces
      * Netty's connect and reads the IP of any {@link InetSocketAddress}, which an unresolved one doesn't have. The
-     * proxy resolves the name, so its target reaches the channel as this instead, and the name is checked here.
+     * proxy resolves the name, so its target reaches the channel as this instead, and the name is checked here when
+     * the player turned the check on.
      */
     private static boolean isBlockedServer(String host) {
+        if (!ClientConfig.enforceMojangBlockedServers) {
+            return false;
+        }
         try {
             Object blocked = Class.forName("com.mojang.patchy.BlockedServers")
                 .getMethod("isBlockedServer", String.class)

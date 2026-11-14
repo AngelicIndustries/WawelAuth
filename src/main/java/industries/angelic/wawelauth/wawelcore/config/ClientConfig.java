@@ -34,6 +34,10 @@ public class ClientConfig {
     @Config.DefaultStringList({ "^Mojang$", "ely\\.by", "littleskin\\.cn" })
     public static String[] disableCredentials = { "^Mojang$", "ely\\.by", "littleskin\\.cn" };
 
+    @Config.Comment("Refuse to connect to servers on Mojang's list of blocked servers, as the game does without Wawel Auth.")
+    @Config.DefaultBoolean(false)
+    public static boolean enforceMojangBlockedServers = false;
+
     @Config.Ignore
     private static transient List<Pattern> compiledSkinPatterns;
     @Config.Ignore
