@@ -98,7 +98,9 @@ public final class LanHost {
             profile = gameService.hasJoinedServer(user, serverId);
         }
         if (profile == null) {
-            UNVERIFIED.set("Failed to verify username! This world takes accounts from " + providerNames(accepted));
+            UNVERIFIED.set(
+                accepted.isEmpty() ? "The host doesn't let other players join this world."
+                    : "Failed to verify username! This world takes accounts from " + providerNames(accepted));
             WawelAuth.LOG.info("LAN world: none of the world's providers verified {}", user.getName());
             return null;
         }
