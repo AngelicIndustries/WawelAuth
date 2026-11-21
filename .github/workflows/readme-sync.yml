@@ -1,0 +1,17 @@
+name: README sync
+
+# Pushes README.md to the Modrinth, 67minecraft and CurseForge pages whose project IDs are set in gradle.properties.
+on:
+  push:
+    branches: [ master, main ]
+    paths: [ README.md, images/** ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  sync:
+    uses: AngelicIndustries/mod-workflows/.github/workflows/readme-sync.yml@v1
+    secrets: inherit

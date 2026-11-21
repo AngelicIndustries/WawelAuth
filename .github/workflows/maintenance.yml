@@ -1,0 +1,27 @@
+name: Maintenance
+
+# Weekly: one PR with the dependency bumps that pass the build, tests and a dev server start, an issue for each
+# bump that breaks one, and a PR or issue for the GTNH buildscript. Skip dependencies in
+# .github/dependency-updates.ignore.
+on:
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: maintenance
+  cancel-in-progress: false
+
+jobs:
+  dependencies:
+    uses: AngelicIndustries/mod-workflows/.github/workflows/dependency-updates.yml@v1
+    secrets: inherit
+
+  buildscript:
+    uses: AngelicIndustries/mod-workflows/.github/workflows/buildscript-update.yml@v1
+    secrets: inherit
