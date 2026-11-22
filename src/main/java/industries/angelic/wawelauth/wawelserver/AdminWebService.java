@@ -65,6 +65,7 @@ import industries.angelic.wawelauth.wawelcore.storage.InviteDAO;
 import industries.angelic.wawelauth.wawelcore.storage.ProfileDAO;
 import industries.angelic.wawelauth.wawelcore.storage.TokenDAO;
 import industries.angelic.wawelauth.wawelcore.storage.UserDAO;
+import industries.angelic.wawelauth.wawelcore.util.Base64Decoding;
 import industries.angelic.wawelauth.wawelnet.BinaryResponse;
 import industries.angelic.wawelauth.wawelnet.HttpRouter;
 import industries.angelic.wawelauth.wawelnet.HttpsContextProvider;
@@ -2190,8 +2191,7 @@ public class AdminWebService {
 
     private static String extractSkinUrlFromTextureProperty(String texturesBase64) {
         try {
-            byte[] jsonBytes = Base64.getDecoder()
-                .decode(texturesBase64);
+            byte[] jsonBytes = Base64Decoding.decode(texturesBase64);
             JsonObject root = new JsonParser().parse(new String(jsonBytes, StandardCharsets.UTF_8))
                 .getAsJsonObject();
             JsonObject textures = root.getAsJsonObject("textures");

@@ -8,7 +8,6 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +28,7 @@ import industries.angelic.angellib.util.StringUtil;
 import industries.angelic.wawelauth.WawelAuth;
 import industries.angelic.wawelauth.wawelcore.config.FallbackServer;
 import industries.angelic.wawelauth.wawelcore.config.ServerConfig;
+import industries.angelic.wawelauth.wawelcore.util.Base64Decoding;
 import industries.angelic.wawelauth.wawelnet.BinaryResponse;
 import industries.angelic.wawelauth.wawelnet.NetException;
 import industries.angelic.wawelauth.wawelnet.RequestContext;
@@ -384,8 +384,7 @@ public class FallbackProxyService {
                     sb.append('=');
                 }
             }
-            byte[] bytes = Base64.getUrlDecoder()
-                .decode(sb.toString());
+            byte[] bytes = Base64Decoding.decodeUrl(sb.toString());
             return new String(bytes, StandardCharsets.UTF_8);
         } catch (Exception e) {
             throw NetException.illegalArgument("Invalid encoded texture URL.");

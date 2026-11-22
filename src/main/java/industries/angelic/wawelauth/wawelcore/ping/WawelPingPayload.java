@@ -3,7 +3,6 @@ package industries.angelic.wawelauth.wawelcore.ping;
 import java.net.URI;
 import java.security.MessageDigest;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -16,6 +15,7 @@ import com.google.gson.JsonPrimitive;
 import industries.angelic.angellib.util.StringUtil;
 import industries.angelic.wawelauth.wawelcore.config.FallbackServer;
 import industries.angelic.wawelauth.wawelcore.config.ServerConfig;
+import industries.angelic.wawelauth.wawelcore.util.Base64Decoding;
 import industries.angelic.wawelauth.wawelcore.util.HexUtil;
 
 /**
@@ -290,8 +290,7 @@ public final class WawelPingPayload {
     private static String computeKeyFingerprint(String base64Key) {
         if (base64Key == null || base64Key.isEmpty()) return null;
         try {
-            byte[] derBytes = Base64.getDecoder()
-                .decode(base64Key);
+            byte[] derBytes = Base64Decoding.decode(base64Key);
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest(derBytes);
             return HexUtil.bytesToHex(hash);

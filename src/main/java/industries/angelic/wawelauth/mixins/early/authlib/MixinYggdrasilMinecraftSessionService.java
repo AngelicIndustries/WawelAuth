@@ -2,7 +2,6 @@ package industries.angelic.wawelauth.mixins.early.authlib;
 
 import java.nio.charset.StandardCharsets;
 import java.security.PublicKey;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -37,6 +36,7 @@ import industries.angelic.wawelauth.wawelclient.WawelClient;
 import industries.angelic.wawelauth.wawelclient.data.ClientProvider;
 import industries.angelic.wawelauth.wawelclient.http.ProviderRoutedHttp;
 import industries.angelic.wawelauth.wawelcore.crypto.PropertySigner;
+import industries.angelic.wawelauth.wawelcore.util.Base64Decoding;
 
 /**
  * Mixin into authlib's YggdrasilMinecraftSessionService.
@@ -233,10 +233,7 @@ public class MixinYggdrasilMinecraftSessionService {
         try {
             for (Property prop : profile.getProperties()
                 .get("textures")) {
-                String decoded = new String(
-                    Base64.getDecoder()
-                        .decode(prop.getValue()),
-                    StandardCharsets.UTF_8);
+                String decoded = new String(Base64Decoding.decode(prop.getValue()), StandardCharsets.UTF_8);
                 JsonObject root = new JsonParser().parse(decoded)
                     .getAsJsonObject();
                 if (!root.has("textures")) continue;

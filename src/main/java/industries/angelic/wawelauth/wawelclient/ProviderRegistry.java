@@ -16,7 +16,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -39,6 +38,7 @@ import industries.angelic.wawelauth.wawelclient.http.ProviderProxySupport;
 import industries.angelic.wawelauth.wawelclient.http.YggdrasilHttpClient;
 import industries.angelic.wawelauth.wawelclient.http.YggdrasilRequestException;
 import industries.angelic.wawelauth.wawelclient.storage.ClientProviderDAO;
+import industries.angelic.wawelauth.wawelcore.util.Base64Decoding;
 import industries.angelic.wawelauth.wawelcore.util.HexUtil;
 
 /**
@@ -438,8 +438,7 @@ public class ProviderRegistry {
     static String computeKeyFingerprint(String base64Key) {
         if (base64Key == null || base64Key.isEmpty()) return null;
         try {
-            byte[] derBytes = Base64.getDecoder()
-                .decode(base64Key);
+            byte[] derBytes = Base64Decoding.decode(base64Key);
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest(derBytes);
             char[] hexChars = new char[hash.length * 2];

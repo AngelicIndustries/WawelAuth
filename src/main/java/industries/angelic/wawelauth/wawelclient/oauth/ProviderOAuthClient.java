@@ -5,7 +5,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -22,6 +21,7 @@ import industries.angelic.wawelauth.WawelAuth;
 import industries.angelic.wawelauth.wawelclient.data.ClientProvider;
 import industries.angelic.wawelauth.wawelclient.data.ProviderProxySettings;
 import industries.angelic.wawelauth.wawelclient.http.ProviderProxySupport;
+import industries.angelic.wawelauth.wawelcore.util.Base64Decoding;
 
 public abstract class ProviderOAuthClient {
 
@@ -152,8 +152,7 @@ public abstract class ProviderOAuthClient {
             throw new IOException("Malformed JWT");
         }
         try {
-            byte[] payload = Base64.getUrlDecoder()
-                .decode(parts[1]);
+            byte[] payload = Base64Decoding.decodeUrl(parts[1]);
             return new JsonParser().parse(new String(payload, StandardCharsets.UTF_8))
                 .getAsJsonObject();
         } catch (Exception e) {

@@ -10,6 +10,7 @@ import java.security.SignatureException;
 import java.util.Base64;
 
 import industries.angelic.wawelauth.wawelcore.data.ProfileProperty;
+import industries.angelic.wawelauth.wawelcore.util.Base64Decoding;
 
 /**
  * SHA1withRSA signing and verification of Yggdrasil profile property values.
@@ -83,8 +84,7 @@ public class PropertySigner {
      */
     public static boolean verifyWithKey(String value, String signatureBase64, PublicKey key) {
         try {
-            byte[] sigBytes = Base64.getDecoder()
-                .decode(signatureBase64);
+            byte[] sigBytes = Base64Decoding.decode(signatureBase64);
             Signature sig = Signature.getInstance(ALGORITHM);
             sig.initVerify(key);
             sig.update(value.getBytes(StandardCharsets.UTF_8));

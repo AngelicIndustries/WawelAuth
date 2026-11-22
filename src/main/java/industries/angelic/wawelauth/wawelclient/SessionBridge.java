@@ -6,7 +6,6 @@ import java.security.KeyFactory;
 import java.security.PublicKey;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -45,6 +44,7 @@ import industries.angelic.wawelauth.wawelclient.storage.ClientAccountDAO;
 import industries.angelic.wawelauth.wawelclient.storage.ClientProviderDAO;
 import industries.angelic.wawelauth.wawelcore.data.UuidUtil;
 import industries.angelic.wawelauth.wawelcore.ping.WawelPingPayload;
+import industries.angelic.wawelauth.wawelcore.util.Base64Decoding;
 
 /**
  * Bridge between WawelAuth account system and vanilla auth/session.
@@ -895,8 +895,7 @@ public class SessionBridge {
             if (keyBase64 == null || keyBase64.isEmpty()) continue;
             if (!seen.add(keyBase64)) continue;
             try {
-                byte[] keyBytes = Base64.getDecoder()
-                    .decode(keyBase64);
+                byte[] keyBytes = Base64Decoding.decode(keyBase64);
                 X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
                 KeyFactory kf = KeyFactory.getInstance("RSA");
                 keys.add(kf.generatePublic(spec));

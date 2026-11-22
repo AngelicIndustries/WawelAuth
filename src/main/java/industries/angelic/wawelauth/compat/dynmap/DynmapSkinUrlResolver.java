@@ -1,7 +1,6 @@
 package industries.angelic.wawelauth.compat.dynmap;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.Collection;
 
 import net.minecraft.entity.player.EntityPlayer;
@@ -14,6 +13,7 @@ import com.mojang.authlib.properties.Property;
 import industries.angelic.angellib.util.StringUtil;
 import industries.angelic.wawelauth.wawelcore.data.WawelProfile;
 import industries.angelic.wawelauth.wawelcore.ping.WawelPingPayload;
+import industries.angelic.wawelauth.wawelcore.util.Base64Decoding;
 import industries.angelic.wawelauth.wawelserver.ApiUrlUtil;
 import industries.angelic.wawelauth.wawelserver.WawelServer;
 
@@ -85,8 +85,7 @@ public final class DynmapSkinUrlResolver {
         if (value == null) return null;
 
         try {
-            byte[] jsonBytes = Base64.getDecoder()
-                .decode(value);
+            byte[] jsonBytes = Base64Decoding.decode(value);
             JsonObject root = new JsonParser().parse(new String(jsonBytes, StandardCharsets.UTF_8))
                 .getAsJsonObject();
             JsonObject textures = root.getAsJsonObject("textures");
