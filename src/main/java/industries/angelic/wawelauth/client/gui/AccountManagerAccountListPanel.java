@@ -69,9 +69,9 @@ final class AccountManagerAccountListPanel {
         return true;
     }
 
+    /** Rebuilds the rows where the list is scrolled to; switching provider scrolls back up itself. */
     void rebuild() {
         ensureStatusCaches();
-        resetScroll();
         accountList.removeAll();
         accountStatusDots.clear();
         renderedStatuses.clear();
@@ -124,7 +124,8 @@ final class AccountManagerAccountListPanel {
             }
 
             ButtonWidget<?> entry = new ButtonWidget<>();
-            WawelAuthStyle.rowButton(entry, () -> isSelected);
+            // Follows the selection, so picking another account needs no rebuild, which would move the list.
+            WawelAuthStyle.rowButton(entry, () -> isSelected(account));
             entry.widthRel(1.0f)
                 .height(ACCOUNT_ROW_HEIGHT);
 
@@ -154,8 +155,8 @@ final class AccountManagerAccountListPanel {
             nameLabel.expanded()
                 .heightRel(1.0f)
                 .color(
-                    () -> isSelected ? WawelAuthStyle.THEME_LIGHTER
-                        : entry.isHovering() ? WawelAuthStyle.THEME_LIGHTER : WawelAuthStyle.TEXT_SECONDARY);
+                    () -> isSelected(account) || entry.isHovering() ? WawelAuthStyle.THEME_LIGHTER
+                        : WawelAuthStyle.TEXT_SECONDARY);
             if (!displayProfileName.equals(profileName)) {
                 nameLabel.addTooltipLine(profileName);
             }
@@ -182,7 +183,6 @@ final class AccountManagerAccountListPanel {
             entry.child(row);
             entry.onMousePressed(mouseButton -> {
                 selectAccount.accept(account);
-                rebuild();
                 return true;
             });
 
@@ -193,6 +193,11 @@ final class AccountManagerAccountListPanel {
             state.selectedAccount = null;
             clearPreview.run();
         }
+    }
+
+    private boolean isSelected(ClientAccount account) {
+        ClientAccount selected = state.selectedAccount;
+        return selected != null && selected.getId() == account.getId();
     }
 
     AccountStatus getLiveStatus(ClientAccount account) {
