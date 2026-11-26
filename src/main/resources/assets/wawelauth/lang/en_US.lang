@@ -1,5 +1,6 @@
 wawelauth.configgui.title=Wawel Auth
 wawelauth.gui.account_manager.open_folder=Open Wawel Auth folder
+wawelauth.gui.account_manager.config=Config
 wawelauth.gui.multiplayer.remove_provider.title=Also remove local provider '%s'?
 wawelauth.gui.multiplayer.remove_provider.subtitle=No other server entries reference it. Its accounts will be deleted too.
 wawelauth.gui.multiplayer.remove_provider.hint=This will also remove it for any Minecraft instance that shares Wawel Auth data.

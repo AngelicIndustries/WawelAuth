@@ -8,6 +8,7 @@ import java.util.function.Supplier;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.EntityClientPlayerMP;
 import net.minecraft.client.gui.Gui;
+import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.WorldClient;
@@ -213,6 +214,12 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
         ACCOUNT_ACTION_ICON_SIZE);
     private static final IDrawable OPEN_FOLDER_ICON_HOVER = centeredIcon(
         folderIcon("open_folder_hover", ACCOUNT_ACTION_ICON_HOVER_COLOR_TYPE),
+        ACCOUNT_ACTION_ICON_SIZE);
+    private static final IDrawable CONFIG_ICON = centeredIcon(
+        configIcon("config", ACCOUNT_ACTION_ICON_COLOR_TYPE),
+        ACCOUNT_ACTION_ICON_SIZE);
+    private static final IDrawable CONFIG_ICON_HOVER = centeredIcon(
+        configIcon("config_hover", ACCOUNT_ACTION_ICON_HOVER_COLOR_TYPE),
         ACCOUNT_ACTION_ICON_SIZE);
     private static final IDrawable ACCOUNT_ACTION_REAUTH_ICON = centeredIcon(
         actionIcon(2, "reauth", ACCOUNT_ACTION_ICON_COLOR_TYPE),
@@ -682,9 +689,13 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
                 .child(
                     openFolderButton().left(PREVIEW_MODE_BUTTON_EDGE_MARGIN)
                         .bottom(PREVIEW_MODE_BUTTON_EDGE_MARGIN))
+                // Spaced from the folder button as the buttons in the bottom right corner are.
+                .child(
+                    configButton().left(PREVIEW_MODE_BUTTON_EDGE_MARGIN * 2 + ACCOUNT_ACTION_BUTTON_SIZE)
+                        .bottom(PREVIEW_MODE_BUTTON_EDGE_MARGIN))
                 .child(
                     new Widget<>().size(ACCOUNT_ACTION_BUTTON_SIZE, ACCOUNT_ACTION_BUTTON_SIZE)
-                        .left(PREVIEW_MODE_BUTTON_EDGE_MARGIN + ACCOUNT_ACTION_BUTTON_SIZE)
+                        .left(PREVIEW_MODE_BUTTON_EDGE_MARGIN * 2 + ACCOUNT_ACTION_BUTTON_SIZE * 2)
                         .bottom(PREVIEW_MODE_BUTTON_EDGE_MARGIN)
                         .background(LoadingSpinner.drawable(this::isPreviewLoading)))
                 .child(previewLogo()))
@@ -1121,6 +1132,42 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
             });
     }
 
+    /** Opens Wawel Auth's Forge config; leaving it shows the account manager again, on the same account. */
+    private ButtonWidget<?> configButton() {
+        return accountActionButton(CONFIG_ICON, CONFIG_ICON_HOVER, "wawelauth.gui.account_manager.config")
+            .onMousePressed(mouseButton -> {
+                ClientProvider provider = state().selectedProvider;
+                ClientAccount account = state().selectedAccount;
+                GuiScreen reopen = new ReopenAccountManager(
+                    getContext().getParentScreen(),
+                    provider != null ? provider.getName() : null,
+                    account != null ? account.getId() : -1L);
+                Minecraft.getMinecraft()
+                    .displayGuiScreen(new GuiFactory.ConfigGui(reopen));
+                return true;
+            });
+    }
+
+    /** Where the config screen goes back to: it opens the account manager again over the screen it came from. */
+    private static final class ReopenAccountManager extends GuiScreen {
+
+        private final GuiScreen parent;
+        private final String providerName;
+        private final long accountId;
+
+        ReopenAccountManager(GuiScreen parent, String providerName, long accountId) {
+            this.parent = parent;
+            this.providerName = providerName;
+            this.accountId = accountId;
+        }
+
+        @Override
+        public void initGui() {
+            mc.displayGuiScreen(parent);
+            openForProvider(providerName, accountId);
+        }
+    }
+
     private static Widget<?> actionGap() {
         return new Widget<>().size(ACCOUNT_ACTION_BUTTON_GAP, ACCOUNT_ACTION_BUTTON_SIZE);
     }
@@ -1143,6 +1190,16 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
     private static IDrawable folderIcon(String name, ColorType colorType) {
         return UITexture.builder()
             .location("wawelauth", "gui/folder")
+            .fullImage()
+            .colorType(colorType)
+            .nonOpaque()
+            .name("wawelauth:" + name)
+            .build();
+    }
+
+    private static IDrawable configIcon(String name, ColorType colorType) {
+        return UITexture.builder()
+            .location("wawelauth", "gui/gears-sodium")
             .fullImage()
             .colorType(colorType)
             .nonOpaque()
