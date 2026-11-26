@@ -74,6 +74,10 @@ public class AccountManager {
      */
     private final ConcurrentHashMap<Long, ReentrantLock> accountTokenLocks = new ConcurrentHashMap<>();
 
+    /** Which textures each account may upload, as its provider last said; see {@link #getUploadSupport}. */
+    private final ConcurrentHashMap<Long, TextureUploadSupport> uploadSupport = new ConcurrentHashMap<>();
+    private final java.util.Set<Long> uploadSupportAsked = ConcurrentHashMap.newKeySet();
+
     public AccountManager(ClientAccountDAO accountDAO, ClientProviderDAO providerDAO, YggdrasilHttpClient httpClient) {
 
         this.accountDAO = accountDAO;
@@ -211,6 +215,56 @@ public class AccountManager {
      * Current rule: GET {services/api root}/ and require
      * meta.implementationName == WawelAuth.MODNAME (case-insensitive).
      */
+    /**
+     * Which textures this account may upload, and so clear: offline and Microsoft accounts' right away, others' once
+     * their provider has answered. Null until then; asking starts on the first call.
+     */
+    public TextureUploadSupport getUploadSupport(long accountId, String providerName) {
+        if (BuiltinProviders.isOfflineProvider(providerName)) return TextureUploadSupport.ALL;
+        if (BuiltinProviders.isMojangProvider(providerName)) return TextureUploadSupport.SKIN_ONLY;
+        TextureUploadSupport known = uploadSupport.get(accountId);
+        if (known == null) refreshUploadSupport(accountId);
+        return known;
+    }
+
+    /**
+     * Asks the account's provider again which textures it may upload, as when the account is picked; the last answer
+     * stays until the new one arrives. One question per account at a time.
+     */
+    public void refreshUploadSupport(long accountId) {
+        if (!uploadSupportAsked.add(accountId)) return;
+        scheduler.submit(() -> {
+            try {
+                ClientAccount account = accountDAO.findById(accountId);
+                if (account != null) fetchUploadSupport(account);
+            } catch (Exception e) {
+                // Until the account is picked again, nothing to upload: a provider that can't answer can't take one.
+                WawelAuth.debug("Couldn't ask which textures account " + accountId + " may upload: " + e.getMessage());
+                uploadSupport.put(accountId, TextureUploadSupport.NONE);
+            } finally {
+                uploadSupportAsked.remove(accountId);
+            }
+        });
+    }
+
+    private TextureUploadSupport fetchUploadSupport(ClientAccount account)
+        throws IOException, YggdrasilRequestException {
+        String providerName = account.getProviderName();
+        if (BuiltinProviders.isOfflineProvider(providerName)) return TextureUploadSupport.ALL;
+        if (BuiltinProviders.isMojangProvider(providerName)) return TextureUploadSupport.SKIN_ONLY;
+        ClientProvider provider = providerDAO.findByName(providerName);
+        TextureUploadSupport support = TextureUploadSupport.NONE;
+        if (provider != null && account.getProfileUuid() != null && provider.getSessionServerUrl() != null) {
+            support = TextureUploadSupport.fromProfile(
+                httpClient.getJson(
+                    provider,
+                    provider
+                        .sessionUrl("/session/minecraft/profile/" + UuidUtil.toUnsigned(account.getProfileUuid()))));
+        }
+        uploadSupport.put(account.getId(), support);
+        return support;
+    }
+
     public CompletableFuture<Boolean> probeSupportsWawelRegister(String providerName) {
         CompletableFuture<Boolean> future = new CompletableFuture<>();
         scheduler.submit(() -> {

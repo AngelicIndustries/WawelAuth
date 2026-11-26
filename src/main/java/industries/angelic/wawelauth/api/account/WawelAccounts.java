@@ -12,6 +12,7 @@ import net.minecraft.client.Minecraft;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import industries.angelic.wawelauth.wawelclient.BuiltinProviders;
+import industries.angelic.wawelauth.wawelclient.TextureUploadSupport;
 import industries.angelic.wawelauth.wawelclient.WawelClient;
 import industries.angelic.wawelauth.wawelclient.data.ClientAccount;
 import industries.angelic.wawelauth.wawelclient.data.ClientProvider;
@@ -42,17 +43,20 @@ public final class WawelAccounts {
 
     /**
      * Whether Wawel Auth offers skin uploads for this account, as its account manager shows the Upload Skin button:
-     * offline accounts always can (as their local skin), others unless the client config disables skin uploads for
-     * their provider. False without an account or its profile.
+     * offline accounts always can (as their local skin), others when their provider takes them (Microsoft does; others
+     * say it in the profile's {@code uploadableTextures}), unless the client config disables skin uploads for it. False
+     * without an account or its profile, and until the provider has answered: the first call asks it.
      */
     public static boolean skinUploadEnabled(AccountInfo account) {
         WawelClient client = WawelClient.instance();
         if (client == null || account == null || account.profileUuid() == null) return false;
         if (account.offline()) return true;
+        TextureUploadSupport support = client.getAccountManager()
+            .getUploadSupport(account.id(), account.providerName());
+        if (support == null || !support.skin()) return false;
         ClientProvider provider = client.getProviderRegistry()
             .getProvider(account.providerName());
-        if (provider == null) return true;
-        return !ClientConfig.isSkinUploadDisabled(provider.getName(), provider.getApiRoot());
+        return provider == null || !ClientConfig.isSkinUploadDisabled(provider.getName(), provider.getApiRoot());
     }
 
     /**

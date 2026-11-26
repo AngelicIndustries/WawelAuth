@@ -67,6 +67,7 @@ import industries.angelic.wawelauth.wawelclient.IServerDataExt;
 import industries.angelic.wawelauth.wawelclient.LocalAuthProviderResolver;
 import industries.angelic.wawelauth.wawelclient.ServerBindingPersistence;
 import industries.angelic.wawelauth.wawelclient.ServerCapabilities;
+import industries.angelic.wawelauth.wawelclient.TextureUploadSupport;
 import industries.angelic.wawelauth.wawelclient.WawelClient;
 import industries.angelic.wawelauth.wawelclient.data.AccountStatus;
 import industries.angelic.wawelauth.wawelclient.data.ClientAccount;
@@ -1491,6 +1492,11 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
         state.selectedAccount = account;
         clearTextureSelection();
         state.textureUploadStatus = "";
+        WawelClient client = WawelClient.instance();
+        if (account != null && client != null) {
+            client.getAccountManager()
+                .refreshUploadSupport(account.getId());
+        }
         if (account != null && account.getProfileUuid() != null) {
             if (!firstFrameDrawn) {
                 clearPreview();
@@ -2621,24 +2627,34 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
         return !isTextureResetDisabledForSelectedProvider();
     }
 
+    /** Which textures the selected account may upload, and so clear; none until its provider has answered. */
+    private TextureUploadSupport selectedUploadSupport() {
+        ClientAccount account = state.selectedAccount;
+        WawelClient client = WawelClient.instance();
+        if (account == null || client == null) return TextureUploadSupport.NONE;
+        TextureUploadSupport support = client.getAccountManager()
+            .getUploadSupport(account.getId(), account.getProviderName());
+        return support != null ? support : TextureUploadSupport.NONE;
+    }
+
     private boolean isSkinUploadEnabledForSelectedAccount() {
-        return hasSelectedTextureAccount() && !isSkinUploadDisabledForSelectedProvider();
+        return hasSelectedTextureAccount() && selectedUploadSupport().skin()
+            && !isSkinUploadDisabledForSelectedProvider();
     }
 
     private boolean isCapeUploadEnabledForSelectedAccount() {
-        return hasSelectedTextureAccount() && !isCapeUploadDisabledForSelectedProvider();
+        return hasSelectedTextureAccount() && selectedUploadSupport().cape()
+            && !isCapeUploadDisabledForSelectedProvider();
     }
 
     private boolean isSkinResetEnabledForSelectedAccount() {
-        return hasSelectedTextureAccount() && isTextureResetEnabledForSelectedProvider();
+        return hasSelectedTextureAccount() && selectedUploadSupport().skin()
+            && isTextureResetEnabledForSelectedProvider();
     }
 
     private boolean isCapeResetEnabledForSelectedAccount() {
-        if (!hasSelectedTextureAccount() || !isTextureResetEnabledForSelectedProvider()) {
-            return false;
-        }
-        ClientProvider provider = selectedTextureProvider();
-        return provider == null || !ProviderDisplayName.isMicrosoftProvider(provider.getName());
+        return hasSelectedTextureAccount() && selectedUploadSupport().cape()
+            && isTextureResetEnabledForSelectedProvider();
     }
 
     private boolean isAnyTextureManagementEnabledForSelectedAccount() {
