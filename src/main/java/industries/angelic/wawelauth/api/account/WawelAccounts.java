@@ -14,6 +14,8 @@ import cpw.mods.fml.relauncher.SideOnly;
 import industries.angelic.wawelauth.wawelclient.BuiltinProviders;
 import industries.angelic.wawelauth.wawelclient.WawelClient;
 import industries.angelic.wawelauth.wawelclient.data.ClientAccount;
+import industries.angelic.wawelauth.wawelclient.data.ClientProvider;
+import industries.angelic.wawelauth.wawelcore.config.ClientConfig;
 import industries.angelic.wawelauth.wawelcore.data.SkinModel;
 import industries.angelic.wawelauth.wawelcore.data.TextureType;
 
@@ -36,6 +38,21 @@ public final class WawelAccounts {
             account.getProfileUuid(),
             account.getProviderName(),
             BuiltinProviders.isOfflineProvider(account.getProviderName()));
+    }
+
+    /**
+     * Whether Wawel Auth offers skin uploads for this account, as its account manager shows the Upload Skin button:
+     * offline accounts always can (as their local skin), others unless the client config disables skin uploads for
+     * their provider. False without an account or its profile.
+     */
+    public static boolean skinUploadEnabled(AccountInfo account) {
+        WawelClient client = WawelClient.instance();
+        if (client == null || account == null || account.profileUuid() == null) return false;
+        if (account.offline()) return true;
+        ClientProvider provider = client.getProviderRegistry()
+            .getProvider(account.providerName());
+        if (provider == null) return true;
+        return !ClientConfig.isSkinUploadDisabled(provider.getName(), provider.getApiRoot());
     }
 
     /**

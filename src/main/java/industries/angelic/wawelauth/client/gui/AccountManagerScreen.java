@@ -53,6 +53,8 @@ import industries.angelic.wawelauth.Config;
 import industries.angelic.wawelauth.Tags;
 import industries.angelic.wawelauth.WawelAuth;
 import industries.angelic.wawelauth.api.SkinLayersHelper;
+import industries.angelic.wawelauth.api.account.AccountInfo;
+import industries.angelic.wawelauth.api.gui.AccountPreviewButtons;
 import industries.angelic.wawelauth.client.ClipboardHelper;
 import industries.angelic.wawelauth.client.fakeworld.DummyEntityClientPlayerMP;
 import industries.angelic.wawelauth.client.fakeworld.DummyWorldClient;
@@ -60,6 +62,7 @@ import industries.angelic.wawelauth.client.fakeworld.PreviewEntityRenderContext;
 import industries.angelic.wawelauth.client.render.LocalTextureLoader;
 import industries.angelic.wawelauth.compat.ears.EarsCompat;
 import industries.angelic.wawelauth.compat.etfuturum.EtFuturumCompat;
+import industries.angelic.wawelauth.wawelclient.BuiltinProviders;
 import industries.angelic.wawelauth.wawelclient.IServerDataExt;
 import industries.angelic.wawelauth.wawelclient.LocalAuthProviderResolver;
 import industries.angelic.wawelauth.wawelclient.ServerBindingPersistence;
@@ -679,11 +682,7 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
                                         .asWidget()
                                         .size(72, 66)
                                         .invisible()))
-                        .child(
-                            new Row().widthRel(1.0f)
-                                .height(PREVIEW_MODE_BUTTON_SIZE)
-                                .mainAxisAlignment(Alignment.MainAxis.END)
-                                .child(previewModeButton()))
+                        .child(previewButtonRow())
                         .child(new Widget<>().size(1, PREVIEW_MODE_BUTTON_EDGE_MARGIN)))
                 // The same distance from the bottom left corner as the cape button from the bottom right one.
                 .child(
@@ -724,10 +723,8 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
                 .setEnabledIf(widget -> state.selectedAccount != null && !isSelectedAccountOffline()))
             .child(new Widget<>().size(1, 8))
             .child(
-                new Row().widthRel(1.0f)
-                    .height(TEXTURE_ACTION_BUTTON_HEIGHT)
-                    .margin(0, 1)
-                    .setEnabledIf(widget -> isAnyTextureManagementEnabledForSelectedAccount())
+                withExtensionButtons(textureActionRow())
+                    .setEnabledIf(widget -> isAnyTextureManagementEnabledForSelectedAccount() || hasExtensionButtons())
                     .collapseDisabledChild()
                     .child(
                         textureActionButton(
@@ -816,6 +813,7 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
                                 return true;
                             })));
 
+        addExtensionButtons();
         mainPanel.child(
             new Row().widthRel(1.0f)
                 .heightRel(1.0f)
@@ -1070,6 +1068,92 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
         button.overlay(
             IKey.dynamic(() -> GuiText.ellipsizeToPixelWidth(GuiText.tr(translationKey), maxTextWidthPx))
                 .color(() -> button.isBelowMouse() ? ACCOUNT_ACTION_ICON_HOVER_COLOR : ACCOUNT_ACTION_ICON_IDLE_COLOR));
+        return button;
+    }
+
+    private Row previewButtonRow() {
+        Row row = new Row();
+        row.widthRel(1.0f)
+            .height(PREVIEW_MODE_BUTTON_SIZE)
+            .mainAxisAlignment(Alignment.MainAxis.END);
+        row.child(previewModeButton());
+        return row;
+    }
+
+    /**
+     * The row of skin and cape buttons under the account: upload skin, upload cape, reset skin, remove cape, then the
+     * buttons other mods registered (see {@link AccountPreviewButtons}).
+     */
+    private static Row textureActionRow() {
+        Row row = new Row();
+        row.widthRel(1.0f)
+            .height(TEXTURE_ACTION_BUTTON_HEIGHT)
+            .margin(0, 1);
+        return row;
+    }
+
+    /**
+     * The skin and cape row with the other mods' buttons at its end, each after a gap while a skin or cape button
+     * shows. The skin and cape buttons are added after this, in front of them.
+     */
+    private Row withExtensionButtons(Row row) {
+        this.extensionRow = row;
+        return row;
+    }
+
+    private Row extensionRow;
+
+    /** Called once the row has its own buttons: appends the other mods' ones. */
+    private void addExtensionButtons() {
+        if (this.extensionRow == null) return;
+        for (AccountPreviewButtons.PreviewButton extension : AccountPreviewButtons.buttons()) {
+            this.extensionRow
+                .child(textureActionGap().setEnabledIf(widget -> isAnyTextureManagementEnabledForSelectedAccount()));
+            this.extensionRow.child(extensionPreviewButton(extension));
+        }
+        this.extensionRow = null;
+    }
+
+    private boolean hasExtensionButtons() {
+        return state().selectedAccount != null && !AccountPreviewButtons.buttons()
+            .isEmpty();
+    }
+
+    /**
+     * Another mod's button, styled as the skin and cape buttons. It acts on the selected account once its preview has
+     * loaded; its reopen action shows the account manager again over the screen it was opened from.
+     */
+    private ButtonWidget<?> extensionPreviewButton(AccountPreviewButtons.PreviewButton extension) {
+        ButtonWidget<?> button = new ButtonWidget<>();
+        WawelAuthStyle.iconButton(button);
+        button.size(TEXTURE_ACTION_BUTTON_WIDTH, TEXTURE_ACTION_BUTTON_HEIGHT)
+            .background(WawelAuthStyle.rect(ACCOUNT_ACTION_BUTTON_IDLE_BACKGROUND))
+            .hoverBackground(WawelAuthStyle.rect(WawelAuthStyle.BUTTON_HOVER))
+            .overlay((context, x, y, width, height, theme) -> extension.drawIcon(x, y, width, height, false))
+            .hoverOverlay((context, x, y, width, height, theme) -> extension.drawIcon(x, y, width, height, true))
+            .tooltip(tooltip -> tooltip.addLine(IKey.dynamic(extension::tooltip)))
+            .setEnabledIf(widget -> state().selectedAccount != null)
+            .onMousePressed(mouseButton -> {
+                ClientAccount account = state().selectedAccount;
+                PlayerPreviewEntity preview = previewFrontEntity;
+                // Until the preview has loaded there is no skin to act on.
+                if (account == null || preview == null || isPreviewLoading()) return false;
+                GuiScreen parent = getContext().getParentScreen();
+                String provider = account.getProviderName();
+                long accountId = account.getId();
+                AccountInfo info = new AccountInfo(
+                    accountId,
+                    account.getProfileName(),
+                    account.getProfileUuid(),
+                    provider,
+                    BuiltinProviders.isOfflineProvider(provider));
+                extension.pressed(info, preview, () -> {
+                    Minecraft.getMinecraft()
+                        .displayGuiScreen(parent);
+                    openForProvider(provider, accountId);
+                });
+                return true;
+            });
         return button;
     }
 
