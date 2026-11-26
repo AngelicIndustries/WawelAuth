@@ -149,6 +149,12 @@ public abstract class MixinSkinManager implements IProviderAwareSkinManager {
     }
 
     @Override
+    public File wawelauth$getCacheFile(String hash) {
+        if (hash == null || hash.length() < 2) return null;
+        return new File(new File(field_152796_d, hash.substring(0, 2)), hash);
+    }
+
+    @Override
     public void wawelauth$loadProfileTextures(final GameProfile profile,
         final SkinManager.SkinAvailableCallback callback, final boolean requireSecure, final ClientProvider provider) {
         if (provider != null) {

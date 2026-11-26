@@ -24,6 +24,13 @@ Password visibility icons:
 Provider/settings icon:
 - https://github.com/halfmage/pixelarticons/blob/master/svg/settings-cog.svg
 
+Cape creator icon:
+- https://github.com/halfmage/pixelarticons/blob/master/svg/brush.svg
+
+Menu icons:
+- https://github.com/halfmage/pixelarticons/blob/master/svg/menu-square.svg
+- https://github.com/halfmage/pixelarticons/blob/master/svg/arrow-big-down-dash.svg
+
 Website:
 
 - https://pixelarticons.com/icon/login/
@@ -37,6 +44,9 @@ Website:
 - https://pixelarticons.com/icon/eye/
 - https://pixelarticons.com/icon/eye-off/
 - https://pixelarticons.com/icon/settings-cog/
+- https://pixelarticons.com/icon/brush/
+- https://pixelarticons.com/icon/menu-square/
+- https://pixelarticons.com/icon/arrow-big-down-dash/
 
 MIT License
 Copyright (c) 2019 Gerrit Halfmann

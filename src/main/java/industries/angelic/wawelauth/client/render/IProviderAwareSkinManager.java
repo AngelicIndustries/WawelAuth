@@ -16,4 +16,7 @@ public interface IProviderAwareSkinManager {
 
     void wawelauth$loadProfileTextures(GameProfile profile, SkinManager.SkinAvailableCallback callback,
         boolean requireSecure, ClientProvider provider);
+
+    /** Where the skin cache keeps a downloaded texture, as it came. */
+    java.io.File wawelauth$getCacheFile(String hash);
 }

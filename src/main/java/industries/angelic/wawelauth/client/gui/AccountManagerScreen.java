@@ -1,6 +1,11 @@
 package industries.angelic.wawelauth.client.gui;
 
+import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
@@ -53,13 +58,17 @@ import industries.angelic.wawelauth.Config;
 import industries.angelic.wawelauth.Tags;
 import industries.angelic.wawelauth.WawelAuth;
 import industries.angelic.wawelauth.api.SkinLayersHelper;
+import industries.angelic.wawelauth.api.WawelTextureResolver;
 import industries.angelic.wawelauth.api.account.AccountInfo;
 import industries.angelic.wawelauth.api.gui.AccountPreviewButtons;
 import industries.angelic.wawelauth.client.ClipboardHelper;
 import industries.angelic.wawelauth.client.fakeworld.DummyEntityClientPlayerMP;
 import industries.angelic.wawelauth.client.fakeworld.DummyWorldClient;
 import industries.angelic.wawelauth.client.fakeworld.PreviewEntityRenderContext;
+import industries.angelic.wawelauth.client.render.IProviderAwareSkinManager;
 import industries.angelic.wawelauth.client.render.LocalTextureLoader;
+import industries.angelic.wawelauth.client.render.ProviderThreadDownloadImageData;
+import industries.angelic.wawelauth.client.render.animatedcape.AnimatedCapeTexture;
 import industries.angelic.wawelauth.compat.ears.EarsCompat;
 import industries.angelic.wawelauth.compat.etfuturum.EtFuturumCompat;
 import industries.angelic.wawelauth.wawelclient.BuiltinProviders;
@@ -165,7 +174,6 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
     private static final int TEXTURE_ACTION_BUTTON_GAP = 5;
     private static final int ACCOUNT_DETAIL_TOP_OFFSET = 2;
     private static final int TEXTURE_DIALOG_PREVIEW_HEIGHT = 92;
-    private static final int TEXTURE_DIALOG_ENTITY_ROW_HEIGHT = 66;
     private static final int TEXTURE_DIALOG_ENTITY_VERTICAL_OFFSET = 8;
     private static final int TEXTURE_DIALOG_ENTITY_WIDTH = 64;
     private static final int TEXTURE_DIALOG_ENTITY_HEIGHT = 62;
@@ -216,14 +224,20 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
     private static final IDrawable OPEN_FOLDER_ICON = centeredIcon(
         folderIcon("open_folder", ACCOUNT_ACTION_ICON_COLOR_TYPE),
         ACCOUNT_ACTION_ICON_SIZE);
-    private static final IDrawable OPEN_FOLDER_ICON_HOVER = centeredIcon(
-        folderIcon("open_folder_hover", ACCOUNT_ACTION_ICON_HOVER_COLOR_TYPE),
+    private static final IDrawable MENU_ICON = centeredIcon(
+        configIcon("gui/menu", "menu", ACCOUNT_ACTION_ICON_COLOR_TYPE),
+        ACCOUNT_ACTION_ICON_SIZE);
+    private static final IDrawable MENU_ICON_HOVER = centeredIcon(
+        configIcon("gui/menu", "menu_hover", ACCOUNT_ACTION_ICON_HOVER_COLOR_TYPE),
+        ACCOUNT_ACTION_ICON_SIZE);
+    private static final IDrawable SAVE_ICON = centeredIcon(
+        configIcon("gui/save", "save", ACCOUNT_ACTION_ICON_COLOR_TYPE),
+        ACCOUNT_ACTION_ICON_SIZE);
+    private static final IDrawable CAPE_CREATOR_ICON = centeredIcon(
+        configIcon("gui/brush", "cape_creator", ACCOUNT_ACTION_ICON_COLOR_TYPE),
         ACCOUNT_ACTION_ICON_SIZE);
     private static final IDrawable CONFIG_ICON = centeredIcon(
-        configIcon("config", ACCOUNT_ACTION_ICON_COLOR_TYPE),
-        ACCOUNT_ACTION_ICON_SIZE);
-    private static final IDrawable CONFIG_ICON_HOVER = centeredIcon(
-        configIcon("config_hover", ACCOUNT_ACTION_ICON_HOVER_COLOR_TYPE),
+        configIcon("gui/gears-sodium", "config", ACCOUNT_ACTION_ICON_COLOR_TYPE),
         ACCOUNT_ACTION_ICON_SIZE);
     private static final IDrawable ACCOUNT_ACTION_REAUTH_ICON = centeredIcon(
         actionIcon(2, "reauth", ACCOUNT_ACTION_ICON_COLOR_TYPE),
@@ -430,6 +444,11 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
     private IPanelHandler credentialDeleteDialogHandler;
     private IPanelHandler texturePickerUnsupportedDialogHandler;
     private IPanelHandler textureUploadDialogHandler;
+    private IPanelHandler capeCreatorDialogHandler;
+    private IPanelHandler menuHandler;
+    private int menuX;
+    private int menuY;
+    private int menuAboveY;
     private IPanelHandler textureResetDialogHandler;
     private PreviewBackMode capePreviewMode = PreviewBackMode.CAPE;
 
@@ -617,6 +636,9 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
             .simple(mainPanel, (parent, player) -> buildTexturePickerUnsupportedDialog(), true);
         textureUploadDialogHandler = IPanelHandler
             .simple(mainPanel, (parent, player) -> buildTextureUploadDialog(), true);
+        capeCreatorDialogHandler = IPanelHandler
+            .simple(mainPanel, (parent, player) -> CapeCreatorDialog.build(capeCreatorHost()), true);
+        menuHandler = IPanelHandler.simple(mainPanel, (parent, player) -> buildMenu(), true);
         textureResetDialogHandler = IPanelHandler
             .simple(mainPanel, (parent, player) -> buildTextureResetDialog(), true);
 
@@ -687,15 +709,11 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
                         .child(new Widget<>().size(1, PREVIEW_MODE_BUTTON_EDGE_MARGIN)))
                 // The same distance from the bottom left corner as the cape button from the bottom right one.
                 .child(
-                    openFolderButton().left(PREVIEW_MODE_BUTTON_EDGE_MARGIN)
-                        .bottom(PREVIEW_MODE_BUTTON_EDGE_MARGIN))
-                // Spaced from the folder button as the buttons in the bottom right corner are.
-                .child(
-                    configButton().left(PREVIEW_MODE_BUTTON_EDGE_MARGIN * 2 + ACCOUNT_ACTION_BUTTON_SIZE)
+                    menuButton().left(PREVIEW_MODE_BUTTON_EDGE_MARGIN)
                         .bottom(PREVIEW_MODE_BUTTON_EDGE_MARGIN))
                 .child(
                     new Widget<>().size(ACCOUNT_ACTION_BUTTON_SIZE, ACCOUNT_ACTION_BUTTON_SIZE)
-                        .left(PREVIEW_MODE_BUTTON_EDGE_MARGIN * 2 + ACCOUNT_ACTION_BUTTON_SIZE * 2)
+                        .left(PREVIEW_MODE_BUTTON_EDGE_MARGIN * 2 + ACCOUNT_ACTION_BUTTON_SIZE)
                         .bottom(PREVIEW_MODE_BUTTON_EDGE_MARGIN)
                         .background(LoadingSpinner.drawable(this::isPreviewLoading)))
                 .child(previewLogo()))
@@ -724,8 +742,10 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
                 .setEnabledIf(widget -> state.selectedAccount != null && !isSelectedAccountOffline()))
             .child(new Widget<>().size(1, 8))
             .child(
-                withExtensionButtons(textureActionRow())
-                    .setEnabledIf(widget -> isAnyTextureManagementEnabledForSelectedAccount() || hasExtensionButtons())
+                new Row().widthRel(1.0f)
+                    .height(TEXTURE_ACTION_BUTTON_HEIGHT)
+                    .margin(0, 1)
+                    .setEnabledIf(widget -> isAnyTextureManagementEnabledForSelectedAccount())
                     .collapseDisabledChild()
                     .child(
                         textureActionButton(
@@ -814,7 +834,6 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
                                 return true;
                             })));
 
-        addExtensionButtons();
         mainPanel.child(
             new Row().widthRel(1.0f)
                 .heightRel(1.0f)
@@ -1081,83 +1100,6 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
         return row;
     }
 
-    /**
-     * The row of skin and cape buttons under the account: upload skin, upload cape, reset skin, remove cape, then the
-     * buttons other mods registered (see {@link AccountPreviewButtons}).
-     */
-    private static Row textureActionRow() {
-        Row row = new Row();
-        row.widthRel(1.0f)
-            .height(TEXTURE_ACTION_BUTTON_HEIGHT)
-            .margin(0, 1);
-        return row;
-    }
-
-    /**
-     * The skin and cape row with the other mods' buttons at its end, each after a gap while a skin or cape button
-     * shows. The skin and cape buttons are added after this, in front of them.
-     */
-    private Row withExtensionButtons(Row row) {
-        this.extensionRow = row;
-        return row;
-    }
-
-    private Row extensionRow;
-
-    /** Called once the row has its own buttons: appends the other mods' ones. */
-    private void addExtensionButtons() {
-        if (this.extensionRow == null) return;
-        for (AccountPreviewButtons.PreviewButton extension : AccountPreviewButtons.buttons()) {
-            this.extensionRow
-                .child(textureActionGap().setEnabledIf(widget -> isAnyTextureManagementEnabledForSelectedAccount()));
-            this.extensionRow.child(extensionPreviewButton(extension));
-        }
-        this.extensionRow = null;
-    }
-
-    private boolean hasExtensionButtons() {
-        return state().selectedAccount != null && !AccountPreviewButtons.buttons()
-            .isEmpty();
-    }
-
-    /**
-     * Another mod's button, styled as the skin and cape buttons. It acts on the selected account once its preview has
-     * loaded; its reopen action shows the account manager again over the screen it was opened from.
-     */
-    private ButtonWidget<?> extensionPreviewButton(AccountPreviewButtons.PreviewButton extension) {
-        ButtonWidget<?> button = new ButtonWidget<>();
-        WawelAuthStyle.iconButton(button);
-        button.size(TEXTURE_ACTION_BUTTON_WIDTH, TEXTURE_ACTION_BUTTON_HEIGHT)
-            .background(WawelAuthStyle.rect(ACCOUNT_ACTION_BUTTON_IDLE_BACKGROUND))
-            .hoverBackground(WawelAuthStyle.rect(WawelAuthStyle.BUTTON_HOVER))
-            .overlay((context, x, y, width, height, theme) -> extension.drawIcon(x, y, width, height, false))
-            .hoverOverlay((context, x, y, width, height, theme) -> extension.drawIcon(x, y, width, height, true))
-            .tooltip(tooltip -> tooltip.addLine(IKey.dynamic(extension::tooltip)))
-            .setEnabledIf(widget -> state().selectedAccount != null)
-            .onMousePressed(mouseButton -> {
-                ClientAccount account = state().selectedAccount;
-                PlayerPreviewEntity preview = previewFrontEntity;
-                // Until the preview has loaded there is no skin to act on.
-                if (account == null || preview == null || isPreviewLoading()) return false;
-                GuiScreen parent = getContext().getParentScreen();
-                String provider = account.getProviderName();
-                long accountId = account.getId();
-                AccountInfo info = new AccountInfo(
-                    accountId,
-                    account.getProfileName(),
-                    account.getProfileUuid(),
-                    provider,
-                    BuiltinProviders.isOfflineProvider(provider));
-                extension.pressed(info, preview, () -> {
-                    Minecraft.getMinecraft()
-                        .displayGuiScreen(parent);
-                    openForProvider(provider, accountId);
-                });
-                return true;
-            });
-        return button;
-    }
-
     private ButtonWidget<?> previewModeButton() {
         ButtonWidget<?> button = new ButtonWidget<>();
         WawelAuthStyle.iconButton(button);
@@ -1206,31 +1148,261 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
             .addTooltipLine(WawelAuth.MODNAME + " v" + Tags.VERSION);
     }
 
-    /** Opens the folder with Wawel Auth's accounts and settings, shared between instances by default. */
-    private static ButtonWidget<?> openFolderButton() {
-        return accountActionButton(
-            OPEN_FOLDER_ICON,
-            OPEN_FOLDER_ICON_HOVER,
-            "wawelauth.gui.account_manager.open_folder").onMousePressed(mouseButton -> {
-                FileUtil.openFolder(Config.getConfigDir());
-                return true;
-            });
+    /** Drops down the menu: Wawel Auth's folder, its config, the cape creator, and saving the skin or cape. */
+    private ButtonWidget<?> menuButton() {
+        ButtonWidget<?> button = accountActionButton(MENU_ICON, MENU_ICON_HOVER, "wawelauth.gui.account_manager.menu");
+        button.onMousePressed(mouseButton -> {
+            menuX = button.getArea()
+                .x();
+            menuY = button.getArea()
+                .ey() + 1;
+            menuAboveY = button.getArea()
+                .y() - 1;
+            menuHandler.deleteCachedPanel();
+            menuHandler.openPanel();
+            return true;
+        });
+        return button;
+    }
+
+    private ModularPanel buildMenu() {
+        List<AccountManagerMenu.Entry> entries = new ArrayList<>(
+            Arrays.asList(
+                new AccountManagerMenu.Entry(
+                    OPEN_FOLDER_ICON,
+                    GuiText.tr("wawelauth.gui.account_manager.open_folder"),
+                    () -> true,
+                    () -> FileUtil.openFolder(Config.getConfigDir())),
+                new AccountManagerMenu.Entry(
+                    CONFIG_ICON,
+                    GuiText.tr("wawelauth.gui.account_manager.config"),
+                    () -> true,
+                    this::openConfig),
+                new AccountManagerMenu.Entry(
+                    CAPE_CREATOR_ICON,
+                    GuiText.tr("wawelauth.gui.cape_creator.open"),
+                    () -> true,
+                    this::openCapeCreator),
+                AccountManagerMenu.SEPARATOR,
+                new AccountManagerMenu.Entry(
+                    SAVE_ICON,
+                    GuiText.tr("wawelauth.gui.account_manager.save_skin"),
+                    () -> hasSavableTexture(TextureType.SKIN),
+                    () -> saveSelectedTexture(TextureType.SKIN)),
+                new AccountManagerMenu.Entry(
+                    SAVE_ICON,
+                    GuiText.tr("wawelauth.gui.account_manager.save_cape"),
+                    () -> hasSavableTexture(TextureType.CAPE),
+                    () -> saveSelectedTexture(TextureType.CAPE))));
+        List<AccountPreviewButtons.PreviewButton> extensions = AccountPreviewButtons.buttons();
+        if (!extensions.isEmpty()) entries.add(AccountManagerMenu.SEPARATOR);
+        for (AccountPreviewButtons.PreviewButton extension : extensions) {
+            entries.add(
+                new AccountManagerMenu.Entry(
+                    (context, x, y, width, height, theme) -> extension.drawIcon(x, y, width, height, false),
+                    (context, x, y, width, height, theme) -> extension.drawIcon(x, y, width, height, true),
+                    extension.tooltip(),
+                    () -> state.selectedAccount != null && previewFrontEntity != null && !isPreviewLoading(),
+                    () -> pressExtension(extension)));
+        }
+        return AccountManagerMenu.build(entries, menuX, menuY, menuAboveY);
+    }
+
+    /**
+     * Another mod's entry (see {@link AccountPreviewButtons}), on the selected account once its preview has loaded; its
+     * reopen action shows the account manager again over the screen it was opened from.
+     */
+    private void pressExtension(AccountPreviewButtons.PreviewButton extension) {
+        ClientAccount account = state.selectedAccount;
+        PlayerPreviewEntity preview = previewFrontEntity;
+        if (account == null || preview == null || isPreviewLoading()) return;
+        GuiScreen parent = getContext().getParentScreen();
+        String provider = account.getProviderName();
+        long accountId = account.getId();
+        AccountInfo info = new AccountInfo(
+            accountId,
+            account.getProfileName(),
+            account.getProfileUuid(),
+            provider,
+            BuiltinProviders.isOfflineProvider(provider));
+        extension.pressed(info, preview, () -> {
+            Minecraft.getMinecraft()
+                .displayGuiScreen(parent);
+            openForProvider(provider, accountId);
+        });
+    }
+
+    /** Opens the cape creator, which can give the selected account its cape. */
+    private void openCapeCreator() {
+        capeCreatorDialogHandler.deleteCachedPanel();
+        capeCreatorDialogHandler.openPanel();
+    }
+
+    // -- Saving the skin and cape --
+
+    /** Whether the selected account has this texture to save: an offline account's file, or a downloaded one. */
+    private boolean hasSavableTexture(TextureType type) {
+        ClientAccount account = state.selectedAccount;
+        if (account == null) return false;
+        if (ProviderDisplayName.isOfflineProvider(account.getProviderName())) {
+            String path = type == TextureType.SKIN ? account.getLocalSkinPath() : account.getLocalCapePath();
+            return !isBlank(path) && new File(path).isFile();
+        }
+        ResourceLocation location = selectedTextureLocation(type);
+        return location != null && !location.equals(WawelTextureResolver.getDefaultCape())
+            && !location.equals(WawelTextureResolver.getDefaultSkin());
+    }
+
+    private ResourceLocation selectedTextureLocation(TextureType type) {
+        ClientAccount account = state.selectedAccount;
+        WawelClient client = WawelClient.instance();
+        if (account == null || account.getProfileUuid() == null || client == null) return null;
+        ClientProvider provider = resolveProvider(
+            client.getProviderRegistry()
+                .getProvider(account.getProviderName()));
+        if (provider == null) return null;
+        String name = account.getProfileName() != null ? account.getProfileName() : "?";
+        return type == TextureType.SKIN ? client.getTextureResolver()
+            .getSkin(account.getProfileUuid(), name, provider, false)
+            : client.getTextureResolver()
+                .getCape(account.getProfileUuid(), name, provider, false);
+    }
+
+    /**
+     * The texture as it was downloaded or set, so an animated cape stays animated: an offline account's file, the
+     * skin cache's copy of a download, or the downloaded image as a last resort.
+     */
+    private byte[] selectedTextureBytes(TextureType type) throws IOException {
+        ClientAccount account = state.selectedAccount;
+        if (account == null) return null;
+        if (ProviderDisplayName.isOfflineProvider(account.getProviderName())) {
+            String path = type == TextureType.SKIN ? account.getLocalSkinPath() : account.getLocalCapePath();
+            return isBlank(path) ? null : java.nio.file.Files.readAllBytes(new File(path).toPath());
+        }
+        ResourceLocation location = selectedTextureLocation(type);
+        if (location == null) return null;
+        Minecraft mc = Minecraft.getMinecraft();
+        String path = location.getResourcePath();
+        if ("minecraft".equals(location.getResourceDomain()) && path.startsWith("skins/")
+            && mc.func_152342_ad() instanceof IProviderAwareSkinManager) {
+            File cached = ((IProviderAwareSkinManager) mc.func_152342_ad())
+                .wawelauth$getCacheFile(path.substring("skins/".length()));
+            if (cached != null && cached.isFile()) {
+                return java.nio.file.Files.readAllBytes(cached.toPath());
+            }
+        }
+        net.minecraft.client.renderer.texture.ITextureObject texture = mc.getTextureManager()
+            .getTexture(location);
+        if (texture instanceof ProviderThreadDownloadImageData) {
+            BufferedImage image = ((ProviderThreadDownloadImageData) texture).getOriginalImage();
+            if (image != null) {
+                java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+                javax.imageio.ImageIO.write(image, "png", out);
+                return out.toByteArray();
+            }
+        }
+        return null;
+    }
+
+    /** Asks where to save the selected account's skin or cape, then writes it there. */
+    private void saveSelectedTexture(TextureType type) {
+        ClientAccount account = state.selectedAccount;
+        byte[] data;
+        try {
+            data = selectedTextureBytes(type);
+        } catch (IOException e) {
+            state.textureUploadStatus = GuiText.tr("wawelauth.gui.account_manager.texture_save_failed", e.getMessage());
+            return;
+        }
+        if (account == null || data == null) {
+            state.textureUploadStatus = GuiText.tr("wawelauth.gui.account_manager.texture_save_unavailable");
+            return;
+        }
+        boolean skin = type == TextureType.SKIN;
+        String extension = AnimatedCapeTexture.isGif(data) ? "gif" : "png";
+        String name = (account.getProfileName() != null ? account.getProfileName() : "player")
+            + (skin ? "-skin." : "-cape.")
+            + extension;
+        String title = GuiText.tr(
+            skin ? "wawelauth.gui.account_manager.save_skin_title" : "wawelauth.gui.account_manager.save_cape_title");
+        File directory = getTexturePickerInitialDirectory(skin);
+        Thread thread = new Thread(() -> {
+            FileUtil.FilePickerResult result = FileUtil.pickSaveFile(title, directory, name, extension);
+            String status;
+            if (result.getStatus() == FileUtil.FilePickerResult.Status.SELECTED && result.getFile() != null) {
+                try {
+                    FileUtil.writeFileBytes(result.getFile(), data);
+                    status = GuiText.tr(
+                        "wawelauth.gui.account_manager.texture_saved",
+                        result.getFile()
+                            .getAbsolutePath());
+                } catch (IOException e) {
+                    status = GuiText.tr("wawelauth.gui.account_manager.texture_save_failed", e.getMessage());
+                }
+            } else if (result.getStatus() == FileUtil.FilePickerResult.Status.CANCELLED) {
+                return;
+            } else {
+                status = result.getMessage() != null ? result.getMessage() : "";
+            }
+            String finalStatus = status;
+            Minecraft.getMinecraft()
+                .func_152344_a(() -> state.textureUploadStatus = finalStatus);
+        }, "WawelAuth-SaveTexture");
+        thread.setDaemon(true);
+        thread.start();
+    }
+
+    private CapeCreatorDialog.Host capeCreatorHost() {
+        return new CapeCreatorDialog.Host() {
+
+            @Override
+            public ClientAccount account() {
+                return state.selectedAccount;
+            }
+
+            @Override
+            public PlayerPreviewEntity previewEntity(ResourceLocation cape) {
+                PlayerPreviewEntity entity = createTextureUploadPreviewEntity(
+                    TextureType.CAPE,
+                    cape,
+                    selectedProfileId());
+                applyCapePreviewMode(entity, normalizeCapePreviewMode(capePreviewMode));
+                return entity;
+            }
+
+            @Override
+            public Widget<?> previewPanel(PlayerPreviewEntity front, PlayerPreviewEntity back, Runnable tick,
+                int height, int entityWidth, int entityHeight) {
+                PreviewBackMode[] mode = { normalizeCapePreviewMode(capePreviewMode) };
+                return texturePreviewPanel(
+                    front,
+                    back,
+                    mode,
+                    tick,
+                    height,
+                    entityWidth,
+                    entityHeight,
+                    Alignment.MainAxis.START);
+            }
+
+            @Override
+            public void capeChanged(long accountId, String result) {
+                WawelClient client = WawelClient.instance();
+                if (client != null) handleTextureActionSuccess(client, accountId, result);
+            }
+        };
     }
 
     /** Opens Wawel Auth's Forge config; leaving it shows the account manager again, on the same account. */
-    private ButtonWidget<?> configButton() {
-        return accountActionButton(CONFIG_ICON, CONFIG_ICON_HOVER, "wawelauth.gui.account_manager.config")
-            .onMousePressed(mouseButton -> {
-                ClientProvider provider = state().selectedProvider;
-                ClientAccount account = state().selectedAccount;
-                GuiScreen reopen = new ReopenAccountManager(
-                    getContext().getParentScreen(),
-                    provider != null ? provider.getName() : null,
-                    account != null ? account.getId() : -1L);
-                Minecraft.getMinecraft()
-                    .displayGuiScreen(new GuiFactory.ConfigGui(reopen));
-                return true;
-            });
+    private void openConfig() {
+        ClientProvider provider = state().selectedProvider;
+        ClientAccount account = state().selectedAccount;
+        GuiScreen reopen = new ReopenAccountManager(
+            getContext().getParentScreen(),
+            provider != null ? provider.getName() : null,
+            account != null ? account.getId() : -1L);
+        Minecraft.getMinecraft()
+            .displayGuiScreen(new GuiFactory.ConfigGui(reopen));
     }
 
     /** Where the config screen goes back to: it opens the account manager again over the screen it came from. */
@@ -1282,9 +1454,9 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
             .build();
     }
 
-    private static IDrawable configIcon(String name, ColorType colorType) {
+    private static IDrawable configIcon(String texture, String name, ColorType colorType) {
         return UITexture.builder()
-            .location("wawelauth", "gui/gears-sodium")
+            .location("wawelauth", texture)
             .fullImage()
             .colorType(colorType)
             .nonOpaque()
@@ -2200,7 +2372,12 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
                     .height(14)
                     .color(WawelAuthStyle.THEME_LIGHTER))
             .child(new Widget<>().size(1, 5))
-            .child(textureUploadPreviewPanel(frontEntity, backEntity, dialogPreviewMode, dialogPreview))
+            .child(
+                textureUploadPreviewPanel(
+                    frontEntity,
+                    backEntity,
+                    dialogPreviewMode,
+                    dialogPreview != null ? dialogPreview::tick : null))
             .child(new Widget<>().size(1, 8))
             .child(
                 new TextWidget<>(IKey.dynamic(() -> GuiText.ellipsizeToPixelWidth(statusText[0], maxTextWidthPx)))
@@ -2256,19 +2433,38 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
     }
 
     private Widget<?> textureUploadPreviewPanel(PlayerPreviewEntity frontEntity, PlayerPreviewEntity backEntity,
-        PreviewBackMode[] previewMode, TextureUploadPreview preview) {
+        PreviewBackMode[] previewMode, Runnable tick) {
+        return texturePreviewPanel(
+            frontEntity,
+            backEntity,
+            previewMode,
+            tick,
+            TEXTURE_DIALOG_PREVIEW_HEIGHT,
+            TEXTURE_DIALOG_ENTITY_WIDTH,
+            TEXTURE_DIALOG_ENTITY_HEIGHT,
+            Alignment.MainAxis.CENTER);
+    }
+
+    /**
+     * Two players wearing a texture, with the cape or elytra button under them; {@code tick} runs before each one is
+     * drawn.
+     */
+    private Widget<?> texturePreviewPanel(PlayerPreviewEntity frontEntity, PlayerPreviewEntity backEntity,
+        PreviewBackMode[] previewMode, Runnable tick, int height, int entityWidth, int entityHeight,
+        Alignment.MainAxis alignment) {
+        int entityRowHeight = height - PREVIEW_MODE_BUTTON_SIZE - PREVIEW_MODE_BUTTON_EDGE_MARGIN - 1;
         return new Column().widthRel(1.0f)
-            .height(TEXTURE_DIALOG_PREVIEW_HEIGHT)
+            .height(height)
             .background(WawelAuthStyle.rect(PREVIEW_PANEL_BACKGROUND_COLOR))
             .disableHoverThemeBackground(true)
             .child(
                 new Row().widthRel(1.0f)
-                    .height(TEXTURE_DIALOG_ENTITY_ROW_HEIGHT)
-                    .mainAxisAlignment(Alignment.MainAxis.CENTER)
+                    .height(entityRowHeight)
+                    .mainAxisAlignment(alignment)
                     .crossAxisAlignment(Alignment.CrossAxis.CENTER)
-                    .child(textureUploadEntityWidget(frontEntity, false, preview))
-                    .child(new Widget<>().size(6, TEXTURE_DIALOG_ENTITY_HEIGHT))
-                    .child(textureUploadEntityWidget(backEntity, true, preview)))
+                    .child(textureUploadEntityWidget(frontEntity, false, tick, entityWidth, entityHeight))
+                    .child(new Widget<>().size(6, entityHeight))
+                    .child(textureUploadEntityWidget(backEntity, true, tick, entityWidth, entityHeight)))
             .child(
                 new Row().widthRel(1.0f)
                     .height(PREVIEW_MODE_BUTTON_SIZE)
@@ -2306,14 +2502,14 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
         return button;
     }
 
-    private Widget<?> textureUploadEntityWidget(PlayerPreviewEntity entity, boolean backView,
-        TextureUploadPreview preview) {
+    private Widget<?> textureUploadEntityWidget(PlayerPreviewEntity entity, boolean backView, Runnable tick, int width,
+        int height) {
         return new EntityDisplayWidget(() -> entity) {
 
             @Override
             public void draw(GuiContext context, int x, int y, int width, int height, WidgetTheme widgetTheme) {
-                if (preview != null) {
-                    preview.tick();
+                if (tick != null) {
+                    tick.run();
                 }
                 applyTextureUploadPreviewModel(entity, null);
                 drawPreviewEntity(
@@ -2326,7 +2522,7 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
                     height);
             }
         }.asWidget()
-            .size(TEXTURE_DIALOG_ENTITY_WIDTH, TEXTURE_DIALOG_ENTITY_HEIGHT)
+            .size(width, height)
             .invisible();
     }
 

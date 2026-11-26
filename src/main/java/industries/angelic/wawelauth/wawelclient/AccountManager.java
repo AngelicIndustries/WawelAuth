@@ -265,6 +265,109 @@ public class AccountManager {
         return support;
     }
 
+    /**
+     * Whether the cape creator can give an account its cape: offline accounts always can; others when their profile may
+     * upload capes ({@link #getUploadSupport}), on a Wawel Auth server within the limits its metadata tells. Other
+     * servers, such as Drasl, don't tell theirs, and say themselves if they refuse the cape.
+     */
+    public CompletableFuture<CapeUploadInfo> probeCapeUpload(long accountId) {
+        CompletableFuture<CapeUploadInfo> future = new CompletableFuture<>();
+        scheduler.submit(() -> {
+            try {
+                future.complete(doProbeCapeUpload(accountId));
+            } catch (Exception e) {
+                WawelAuth.debug("Cape upload probe failed for account " + accountId + ": " + e.getMessage());
+                future.complete(CapeUploadInfo.unavailable("wawelauth.gui.cape_creator.upload_unknown"));
+            }
+        });
+        return future;
+    }
+
+    private CapeUploadInfo doProbeCapeUpload(long accountId) throws IOException, YggdrasilRequestException {
+        ClientAccount account = getAccount(accountId);
+        if (account == null) {
+            return CapeUploadInfo.unavailable("wawelauth.gui.common.no_account_selected");
+        }
+        if (BuiltinProviders.isOfflineProvider(account.getProviderName())) {
+            return CapeUploadInfo.offline();
+        }
+        ClientProvider provider = providerDAO.findByName(account.getProviderName());
+        if (provider == null) {
+            return CapeUploadInfo.unavailable("wawelauth.gui.cape_creator.upload_unsupported");
+        }
+        if (industries.angelic.wawelauth.wawelcore.config.ClientConfig
+            .isCapeUploadDisabled(provider.getName(), provider.getApiRoot())) {
+            return CapeUploadInfo.unavailable("wawelauth.gui.cape_creator.upload_disabled");
+        }
+        if (!fetchUploadSupport(account).cape()) {
+            return CapeUploadInfo.unavailable("wawelauth.gui.cape_creator.upload_unsupported");
+        }
+
+        JsonObject metadata = httpClient.getJson(provider, resolveMetadataBase(provider));
+        JsonObject meta = metadata != null && metadata.has("meta")
+            && metadata.get("meta")
+                .isJsonObject() ? metadata.getAsJsonObject("meta") : null;
+        String implementation = meta != null && meta.has("implementationName")
+            && meta.get("implementationName")
+                .isJsonPrimitive() ? meta.get("implementationName")
+                    .getAsString() : null;
+        if (implementation == null || !WawelAuth.MODNAME.equalsIgnoreCase(implementation.trim())) {
+            return CapeUploadInfo.otherServer();
+        }
+        JsonObject textures = meta.has("wawelauth") && meta.get("wawelauth")
+            .isJsonObject()
+            && meta.getAsJsonObject("wawelauth")
+                .has("textures")
+            && meta.getAsJsonObject("wawelauth")
+                .get("textures")
+                .isJsonObject() ? meta.getAsJsonObject("wawelauth")
+                    .getAsJsonObject("textures") : new JsonObject();
+
+        return CapeUploadInfo.server(
+            jsonBoolean(textures, "allowAnimatedCapes"),
+            jsonInt(textures, "maxCapeWidth"),
+            jsonInt(textures, "maxCapeHeight"),
+            jsonInt(textures, "maxFileSizeBytes"),
+            jsonInt(textures, "maxCapeFrameCount"),
+            jsonInt(textures, "maxAnimatedCapeFileSizeBytes"),
+            jsonStrings(textures, "animatedCapeFormats").contains("apng"));
+    }
+
+    private static java.util.List<String> jsonStrings(JsonObject object, String key) {
+        java.util.List<String> values = new java.util.ArrayList<>();
+        try {
+            if (object.has(key) && object.get(key)
+                .isJsonArray()) {
+                for (com.google.gson.JsonElement element : object.getAsJsonArray(key)) {
+                    values.add(
+                        element.getAsString()
+                            .toLowerCase(java.util.Locale.ROOT));
+                }
+            }
+        } catch (RuntimeException ignored) {
+            // A malformed list counts as none.
+        }
+        return values;
+    }
+
+    private static Boolean jsonBoolean(JsonObject object, String key) {
+        try {
+            return object.has(key) ? object.get(key)
+                .getAsBoolean() : null;
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
+    private static Integer jsonInt(JsonObject object, String key) {
+        try {
+            return object.has(key) ? object.get(key)
+                .getAsInt() : null;
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
     public CompletableFuture<Boolean> probeSupportsWawelRegister(String providerName) {
         CompletableFuture<Boolean> future = new CompletableFuture<>();
         scheduler.submit(() -> {
