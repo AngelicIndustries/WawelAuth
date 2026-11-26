@@ -2453,18 +2453,22 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
         PreviewBackMode[] previewMode, Runnable tick, int height, int entityWidth, int entityHeight,
         Alignment.MainAxis alignment) {
         int entityRowHeight = height - PREVIEW_MODE_BUTTON_SIZE - PREVIEW_MODE_BUTTON_EDGE_MARGIN - 1;
+        Row entities = new Row();
+        entities.widthRel(1.0f)
+            .height(entityRowHeight)
+            .mainAxisAlignment(alignment)
+            .crossAxisAlignment(Alignment.CrossAxis.CENTER);
+        // Without a front player, as where only one fits, the back one shows alone.
+        if (frontEntity != null) {
+            entities.child(textureUploadEntityWidget(frontEntity, false, tick, entityWidth, entityHeight))
+                .child(new Widget<>().size(6, entityHeight));
+        }
+        entities.child(textureUploadEntityWidget(backEntity, true, tick, entityWidth, entityHeight));
         return new Column().widthRel(1.0f)
             .height(height)
             .background(WawelAuthStyle.rect(PREVIEW_PANEL_BACKGROUND_COLOR))
             .disableHoverThemeBackground(true)
-            .child(
-                new Row().widthRel(1.0f)
-                    .height(entityRowHeight)
-                    .mainAxisAlignment(alignment)
-                    .crossAxisAlignment(Alignment.CrossAxis.CENTER)
-                    .child(textureUploadEntityWidget(frontEntity, false, tick, entityWidth, entityHeight))
-                    .child(new Widget<>().size(6, entityHeight))
-                    .child(textureUploadEntityWidget(backEntity, true, tick, entityWidth, entityHeight)))
+            .child(entities)
             .child(
                 new Row().widthRel(1.0f)
                     .height(PREVIEW_MODE_BUTTON_SIZE)

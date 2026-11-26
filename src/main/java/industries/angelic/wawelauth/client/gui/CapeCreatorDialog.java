@@ -11,6 +11,7 @@ import java.util.concurrent.Executors;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
+import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.util.ResourceLocation;
 
 import org.lwjgl.opengl.GL11;
@@ -18,14 +19,11 @@ import org.lwjgl.opengl.GL11;
 import com.cleanroommc.modularui.api.IPanelHandler;
 import com.cleanroommc.modularui.api.drawable.IDrawable;
 import com.cleanroommc.modularui.api.drawable.IKey;
-import com.cleanroommc.modularui.api.widget.IWidget;
 import com.cleanroommc.modularui.utils.Alignment;
 import com.cleanroommc.modularui.value.DoubleValue;
 import com.cleanroommc.modularui.widget.Widget;
 import com.cleanroommc.modularui.widgets.ButtonWidget;
-import com.cleanroommc.modularui.widgets.ColorPickerDialog;
 import com.cleanroommc.modularui.widgets.Dialog;
-import com.cleanroommc.modularui.widgets.PagedWidget;
 import com.cleanroommc.modularui.widgets.SliderWidget;
 import com.cleanroommc.modularui.widgets.TextWidget;
 import com.cleanroommc.modularui.widgets.layout.Column;
@@ -61,12 +59,14 @@ final class CapeCreatorDialog {
 
         PlayerPreviewEntity previewEntity(ResourceLocation cape);
 
+        /** The two preview players side by side; without {@code front}, the back one alone. */
         Widget<?> previewPanel(PlayerPreviewEntity front, PlayerPreviewEntity back, Runnable tick, int height,
             int entityWidth, int entityHeight);
 
         void capeChanged(long accountId, String result);
     }
 
+    /** The widest the dialog gets; narrower screens get a narrower preview. */
     private static final int WIDTH = 416;
     private static final int HEIGHT = 212;
     private static final int PADDING = 9;
@@ -76,6 +76,12 @@ final class CapeCreatorDialog {
     /** Larger than the upload dialog's players, filling the preview's width. */
     private static final int PREVIEW_ENTITY_WIDTH = 84;
     private static final int PREVIEW_ENTITY_HEIGHT = 100;
+    /** Narrower than this, only the back player shows, as it wears the cape. */
+    private static final int MIN_PREVIEW_ENTITY_WIDTH = 52;
+    private static final int PREVIEW_ENTITY_GAP = 6;
+    private static final int MIN_PREVIEW_WIDTH = 60;
+    private static final int MIN_WIDTH = PADDING * 2 + CONTROLS_WIDTH + PREVIEW_GAP + MIN_PREVIEW_WIDTH;
+    private static final int SCREEN_MARGIN = 4;
     private static final int SLIDER_COLOR = 0xFFFFFFFF;
     private static final int ROW_HEIGHT = 16;
     private static final int ROW_GAP = 7;
@@ -129,7 +135,7 @@ final class CapeCreatorDialog {
         probeUpload();
 
         IPanelHandler colorHandler = IPanelHandler
-            .simple(dialog, (parent, player) -> hsvColorPicker(creator.getColor(), this::colorPicked), true);
+            .simple(dialog, (parent, player) -> new CapeColorPicker(creator.getColor(), this::colorPicked), true);
 
         Column controls = new Column();
         controls.width(CONTROLS_WIDTH)
@@ -161,6 +167,13 @@ final class CapeCreatorDialog {
             .child(gap(ROW_GAP))
             .child(formatRow());
 
+        int width = dialogWidth();
+        int previewWidth = width - PADDING * 2 - CONTROLS_WIDTH - PREVIEW_GAP;
+        // Inside the preview, 2 pixels on each side.
+        boolean bothPlayers = previewWidth - 4 >= MIN_PREVIEW_ENTITY_WIDTH * 2 + PREVIEW_ENTITY_GAP;
+        int entityWidth = Math
+            .min(PREVIEW_ENTITY_WIDTH, bothPlayers ? (previewWidth - 4 - PREVIEW_ENTITY_GAP) / 2 : previewWidth - 4);
+        int entityHeight = PREVIEW_ENTITY_HEIGHT * entityWidth / PREVIEW_ENTITY_WIDTH;
         Row body = new Row();
         body.widthRel(1.0f)
             .height(BODY_HEIGHT)
@@ -168,15 +181,15 @@ final class CapeCreatorDialog {
             .child(new Widget<>().size(PREVIEW_GAP, 1))
             .child(
                 host.previewPanel(
-                    front,
+                    bothPlayers ? front : null,
                     back,
                     this::tickPreview,
                     BODY_HEIGHT,
-                    PREVIEW_ENTITY_WIDTH,
-                    PREVIEW_ENTITY_HEIGHT)
-                    .width(WIDTH - PADDING * 2 - CONTROLS_WIDTH - PREVIEW_GAP));
+                    entityWidth,
+                    entityHeight)
+                    .width(previewWidth));
 
-        int textWidth = WIDTH - PADDING * 2 - 4;
+        int textWidth = width - PADDING * 2 - 4;
         ButtonWidget<?> close = new ButtonWidget<>();
         WawelAuthStyle.textButton(close.size(60, 18), 52, "wawelauth.gui.common.close")
             .onMousePressed(button -> {
@@ -249,9 +262,20 @@ final class CapeCreatorDialog {
                     .child(close));
 
         WawelAuthStyle.dialog(dialog);
-        dialog.size(WIDTH, HEIGHT)
+        dialog.size(width, HEIGHT)
             .child(root);
         return dialog;
+    }
+
+    /**
+     * As wide as the screen allows when the dialog opens, up to {@link #WIDTH}; the narrowest scaled screen Minecraft
+     * picks, 320 wide, still fits the controls and one player.
+     */
+    private static int dialogWidth() {
+        Minecraft minecraft = Minecraft.getMinecraft();
+        int screenWidth = new ScaledResolution(minecraft, minecraft.displayWidth, minecraft.displayHeight)
+            .getScaledWidth();
+        return Math.max(MIN_WIDTH, Math.min(WIDTH, screenWidth - SCREEN_MARGIN * 2));
     }
 
     // -- Rows --
@@ -324,33 +348,6 @@ final class CapeCreatorDialog {
                     .height(ROW_HEIGHT)
                     .color(SECONDARY_TEXT));
         return row;
-    }
-
-    /**
-     * ModularUI's color picker, on its HSV page: the hue and saturation sliders are what picking a cape color is
-     * mostly about.
-     */
-    private static ColorPickerDialog hsvColorPicker(int rgb, java.util.function.IntConsumer picked) {
-        ColorPickerDialog picker = new ColorPickerDialog(
-            "wawelauth_cape_color",
-            color -> { if (color != null) picked.accept(color); },
-            0xFF000000 | rgb,
-            false);
-        PagedWidget<?> pages = findPages(picker);
-        if (pages != null) {
-            pages.initialPage(1);
-        }
-        return picker;
-    }
-
-    private static PagedWidget<?> findPages(IWidget widget) {
-        if (widget instanceof PagedWidget<?>paged) return paged;
-        if (widget.getChildren() == null) return null;
-        for (IWidget child : widget.getChildren()) {
-            PagedWidget<?> found = findPages(child);
-            if (found != null) return found;
-        }
-        return null;
     }
 
     private Row scaleRow() {
