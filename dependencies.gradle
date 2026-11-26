@@ -57,7 +57,7 @@ dependencies {
     shadowImplementation("com.falsepattern:falsepatternlib-mc1.7.10:${fplibDepLoaderVersion}:deploader_stub") // LGPL 3.0
 
     // Supply a local AngelLib development jar with -PangelLibJar, e.g. a build with an unpublished API.
-    def angelLibDependency = "industries.angelic.angellib:AngelLib:24773db-snapshot:dev"
+    def angelLibDependency = "industries.angelic.angellib:AngelLib:1.0.4:dev"
     if (project.hasProperty("angelLibJar")) {
         def angelLibJar = file(project.property("angelLibJar"))
         if (!angelLibJar.isFile()) {
