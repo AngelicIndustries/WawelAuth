@@ -47,6 +47,7 @@ This mod also adds some other features, like an admin web panel, and animated ca
 
 ## Credits
 
+* [kotmatross28729](https://github.com/kotmatross28729) for the skin layer and overlay rendering rework
 * [Catalogue-Vintage](https://github.com/RuiXuqi/Catalogue-Vintage) for folder icon and system-open inspiration
 * [GT:NH buildscript](https://github.com/GTNewHorizons/ExampleMod1.7.10)
 * [Background image](https://www.pinterest.com/pin/367536019569661725/)
