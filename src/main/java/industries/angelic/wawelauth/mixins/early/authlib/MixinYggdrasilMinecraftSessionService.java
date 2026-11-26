@@ -270,8 +270,9 @@ public class MixinYggdrasilMinecraftSessionService {
                     .replace("-", "");
                 CompletableFuture.supplyAsync(() -> {
                     try {
-                        byte[] gifBytes = wawelauth$downloadBytes(capeUrl, downloadProvider);
-                        return AnimatedCapeTexture.decodeGif(gifBytes);
+                        // A Wawel Auth server's animated cape: a GIF, or an APNG from newer servers.
+                        byte[] capeBytes = wawelauth$downloadBytes(capeUrl, downloadProvider);
+                        return AnimatedCapeTexture.decodeAnimated(capeBytes);
                     } catch (Exception e) {
                         WawelAuth.debug("Failed to download animated cape for " + uuid + ": " + e.getMessage());
                         return null;

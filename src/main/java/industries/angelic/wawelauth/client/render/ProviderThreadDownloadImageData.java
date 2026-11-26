@@ -21,6 +21,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import industries.angelic.wawelauth.client.render.animatedcape.AnimatedCapeLoader;
 import industries.angelic.wawelauth.wawelclient.data.ClientProvider;
 import industries.angelic.wawelauth.wawelclient.data.ProviderProxySettings;
 import industries.angelic.wawelauth.wawelclient.http.ProviderRoutedHttp;
@@ -35,6 +36,7 @@ public class ProviderThreadDownloadImageData extends ThreadDownloadImageData {
     private static final AtomicInteger THREAD_COUNTER = new AtomicInteger(0);
 
     private final File cacheFile;
+    private volatile ResourceLocation animatedCapeLocation;
     private final String imageUrl;
     private final IImageBuffer imageBuffer;
     private final ProviderProxySettings proxySettings;
@@ -62,6 +64,11 @@ public class ProviderThreadDownloadImageData extends ThreadDownloadImageData {
         this.imageBuffer = imageBuffer;
         this.proxySettings = copySettings(proxySettings);
         this.providerName = providerName;
+    }
+
+    /** Set for capes: when the downloaded file is an APNG, the texture at this location becomes its animation. */
+    public void animateApngAt(ResourceLocation location) {
+        this.animatedCapeLocation = location;
     }
 
     public BufferedImage getOriginalImage() {
@@ -94,6 +101,7 @@ public class ProviderThreadDownloadImageData extends ThreadDownloadImageData {
                     cachedImage = imageBuffer.parseUserSkin(cachedImage);
                 }
                 setBufferedImage(cachedImage);
+                AnimatedCapeLoader.animateIfApngAsync(animatedCapeLocation, cacheFile);
             } catch (IOException e) {
                 LOGGER.error("Couldn't load skin " + cacheFile, e);
                 startDownload();
@@ -161,6 +169,7 @@ public class ProviderThreadDownloadImageData extends ThreadDownloadImageData {
                     }
 
                     setBufferedImage(downloadedImage);
+                    AnimatedCapeLoader.animateIfApng(animatedCapeLocation, imageBytes);
                 } catch (Exception e) {
                     LOGGER.error("Couldn't download routed texture", e);
                 }

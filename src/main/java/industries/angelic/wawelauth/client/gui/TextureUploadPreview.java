@@ -9,6 +9,7 @@ import net.minecraft.util.ResourceLocation;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
+import industries.angelic.angellib.util.ApngUtil;
 import industries.angelic.wawelauth.api.SkinImageUtil;
 import industries.angelic.wawelauth.client.render.LocalTextureLoader;
 import industries.angelic.wawelauth.client.render.ModernRenderers;
@@ -36,8 +37,8 @@ final class TextureUploadPreview implements AutoCloseable {
         String path = "upload_preview/" + textureType.getApiName() + "/" + System.nanoTime();
         if (textureType == TextureType.CAPE) {
             byte[] data = Files.readAllBytes(file.toPath());
-            if (isGif(data)) {
-                AnimatedCapeTexture.DecodedGif decoded = AnimatedCapeTexture.decodeGif(data);
+            if (isGif(data) || ApngUtil.isAnimated(data)) {
+                AnimatedCapeTexture.DecodedGif decoded = AnimatedCapeTexture.decodeAnimated(data);
                 if (decoded == null) {
                     throw new IOException("Failed to decode animated cape.");
                 }

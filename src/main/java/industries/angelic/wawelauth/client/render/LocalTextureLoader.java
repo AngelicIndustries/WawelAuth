@@ -21,6 +21,7 @@ import net.minecraft.util.ResourceLocation;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
+import industries.angelic.angellib.util.ApngUtil;
 import industries.angelic.wawelauth.WawelAuth;
 import industries.angelic.wawelauth.client.render.animatedcape.AnimatedCapeTexture;
 import industries.angelic.wawelauth.client.render.animatedcape.AnimatedCapeTracker;
@@ -94,14 +95,45 @@ public final class LocalTextureLoader {
             .endsWith(".gif");
     }
 
-    public static ResourceLocation getOfflineGIFCape(UUID profileId, String capePath) {
+    /**
+     * Whether a local cape file is animated: a GIF, or a PNG that is an APNG. The PNG check reads the file's start
+     * once per change, since capes are looked up every frame.
+     */
+    public static boolean isAnimatedCapePath(String path) {
+        if (isGifPath(path)) return true;
+        if (path == null || !path.toLowerCase()
+            .endsWith(".png")) return false;
+        File file = new File(path);
+        long modified = file.lastModified();
+        Long[] cached = ANIMATED_PNG_CHECKS.get(path);
+        if (cached != null && cached[0] == modified) return cached[1] == 1L;
+        boolean animated;
+        try (java.io.InputStream in = new java.io.FileInputStream(file)) {
+            byte[] head = new byte[64 * 1024];
+            int read = 0;
+            int n;
+            while (read < head.length && (n = in.read(head, read, head.length - read)) > 0) {
+                read += n;
+            }
+            animated = ApngUtil.isAnimated(java.util.Arrays.copyOf(head, read));
+        } catch (java.io.IOException e) {
+            animated = false;
+        }
+        ANIMATED_PNG_CHECKS.put(path, new Long[] { modified, animated ? 1L : 0L });
+        return animated;
+    }
+
+    private static final java.util.Map<String, Long[]> ANIMATED_PNG_CHECKS = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** An offline account's animated cape (GIF or APNG), once loaded; null for still capes or while it loads. */
+    public static ResourceLocation getOfflineAnimatedCape(UUID profileId, String capePath) {
         if (profileId == null || capePath == null
             || capePath.trim()
                 .isEmpty()) {
             return null;
         }
 
-        if (isGifPath(capePath)) {
+        if (isAnimatedCapePath(capePath)) {
             AnimatedCapeTexture animated = AnimatedCapeTracker.get(profileId);
             if (animated != null) {
                 return animated.getResourceLocation();
@@ -118,6 +150,7 @@ public final class LocalTextureLoader {
             return;
         }
         OFFLINE_CAPE_LOADS.remove(profileId);
+        ANIMATED_PNG_CHECKS.clear();
         AnimatedCapeTracker.remove(profileId);
     }
 
@@ -128,7 +161,7 @@ public final class LocalTextureLoader {
 
         CompletableFuture.supplyAsync(() -> {
             try {
-                return AnimatedCapeTexture.decodeGif(Files.readAllBytes(new File(capePath).toPath()));
+                return AnimatedCapeTexture.decodeAnimated(Files.readAllBytes(new File(capePath).toPath()));
             } catch (Exception e) {
                 WawelAuth
                     .debug("Failed to decode local offline animated cape for " + profileId + ": " + e.getMessage());

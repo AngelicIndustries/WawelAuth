@@ -129,7 +129,7 @@ public class MixinAbstractClientPlayer {
             SessionBridge.OfflineLocalSkin local = client.getSessionBridge()
                 .resolveOfflineLocalSkin(uuid, provider);
             if (local != null && local.getCapePath() != null) {
-                if (LocalTextureLoader.getOfflineGIFCape(uuid, local.getCapePath()) != null) {
+                if (LocalTextureLoader.getOfflineAnimatedCape(uuid, local.getCapePath()) != null) {
                     cir.setReturnValue(true);
                 }
             }

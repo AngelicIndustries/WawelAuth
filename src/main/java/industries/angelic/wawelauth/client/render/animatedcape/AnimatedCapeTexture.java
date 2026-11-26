@@ -19,6 +19,7 @@ import org.w3c.dom.Node;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
+import industries.angelic.angellib.util.ApngUtil;
 import industries.angelic.angellib.util.GifUtil;
 import industries.angelic.wawelauth.WawelAuth;
 
@@ -104,6 +105,47 @@ public class AnimatedCapeTexture {
         }
     }
 
+    /** Frames are kept no larger than this: a cape is drawn small, and its frames all stay in memory. */
+    private static final int MAX_FRAME_PIXELS = 512 * 256;
+    /** The whole sprite sheet stays under 64 MB, however many frames the cape has. */
+    private static final int MAX_SHEET_PIXELS = 16 * 1024 * 1024;
+
+    /** Decodes an animated GIF or APNG cape; null when it's neither, or can't be read. */
+    public static DecodedGif decodeAnimated(byte[] data) {
+        if (data == null) return null;
+        if (isGif(data)) return decodeGif(data);
+        if (ApngUtil.isAnimated(data)) return decodeApng(data);
+        return null;
+    }
+
+    public static boolean isGif(byte[] data) {
+        return data != null && data.length >= 6 && data[0] == 'G' && data[1] == 'I' && data[2] == 'F';
+    }
+
+    /** Decodes an APNG into a sprite sheet pixel array, reading large ones scaled down. Safe on any thread. */
+    public static DecodedGif decodeApng(byte[] apngBytes) {
+        try {
+            GifUtil.GifData apng = ApngUtil.read(apngBytes, 1024, 512);
+            BufferedImage first = apng.getFrame(0);
+            return fromFrames(apng, first.getWidth(), first.getHeight());
+        } catch (Exception e) {
+            WawelAuth.LOG.warn("Failed to decode animated cape APNG: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /** The frames side by side at the largest size the limits allow, keeping their proportions. */
+    private static DecodedGif fromFrames(GifUtil.GifData frames, int width, int height) {
+        int count = frames.getFrameCount();
+        double maxPixels = Math.min(MAX_FRAME_PIXELS, MAX_SHEET_PIXELS / (double) Math.max(1, count));
+        double scale = Math.min(1.0, Math.sqrt(maxPixels / ((double) width * height)));
+        int frameWidth = Math.max(1, (int) Math.floor(width * scale));
+        int frameHeight = Math.max(1, (int) Math.floor(height * scale));
+        BufferedImage sheet = GifUtil.stitchGif(frames, frameWidth, frameHeight);
+        int[] pixels = sheet.getRGB(0, 0, sheet.getWidth(), sheet.getHeight(), null, 0, sheet.getWidth());
+        return new DecodedGif(pixels, frameWidth, frameHeight, count, GifUtil.getFrameDelay(frames));
+    }
+
     /**
      * Decodes a GIF into a sprite sheet pixel array. Safe to call from any thread.
      * Does NOT create any OpenGL resources.
@@ -133,26 +175,7 @@ public class AnimatedCapeTexture {
                 }
             }
 
-            GifUtil.StitchedAnimationData stitched = GifUtil.stitchedFromBytes(gifBytes, nativeW, nativeH);
-            if (stitched == null) {
-                WawelAuth.LOG.warn("Failed to decode animated cape GIF: stitchedFromBytes returned null");
-                return null;
-            }
-
-            // Convert stitched PNG bytes to pixel array
-            BufferedImage img = GifUtil.byteArrayToBufferedImage(stitched.stichedData);
-            if (img == null) {
-                WawelAuth.LOG.warn("Failed to decode animated cape GIF: could not read stitched image");
-                return null;
-            }
-            int[] pixels = img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth());
-
-            return new DecodedGif(
-                pixels,
-                stitched.frameWidth,
-                stitched.frameHeight,
-                stitched.frameCount,
-                stitched.frameDelayMs);
+            return fromFrames(GifUtil.readGif(gifBytes), nativeW, nativeH);
         } catch (Exception e) {
             WawelAuth.LOG.warn("Failed to decode animated cape GIF: {}", e.getMessage());
             return null;
@@ -218,11 +241,15 @@ public class AnimatedCapeTexture {
      * @return the AnimatedCapeTexture, or null on failure
      */
     public static AnimatedCapeTexture createFromDecoded(DecodedGif decoded, String locationPath) {
+        return createFromDecoded(decoded, new ResourceLocation("wawelauth", locationPath));
+    }
+
+    /** As {@link #createFromDecoded(DecodedGif, String)}, at any location, replacing the texture there. */
+    public static AnimatedCapeTexture createFromDecoded(DecodedGif decoded, ResourceLocation location) {
         if (decoded == null) return null;
 
         try {
             DynamicTexture frameTex = new DynamicTexture(decoded.frameWidth, decoded.frameHeight);
-            ResourceLocation location = new ResourceLocation("wawelauth", locationPath);
 
             Minecraft mc = Minecraft.getMinecraft();
             ITextureObject existing = mc.renderEngine.getTexture(location);

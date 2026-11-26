@@ -141,6 +141,9 @@ public abstract class MixinSkinManager implements IProviderAwareSkinManager {
             textureType == Type.SKIN ? field_152793_a : WawelTextureResolver.getDefaultCape(),
             new SkinManagerCompatImageBuffer(delegate, callback, textureType, resourceLocation),
             provider);
+        if (textureType == Type.CAPE) {
+            download.animateApngAt(resourceLocation);
+        }
         field_152795_c.loadTexture(resourceLocation, download);
         return resourceLocation;
     }

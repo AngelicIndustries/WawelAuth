@@ -5,6 +5,8 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+import net.minecraft.util.ResourceLocation;
+
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import industries.angelic.wawelauth.WawelAuth;
@@ -19,6 +21,11 @@ import industries.angelic.wawelauth.WawelAuth;
 public final class AnimatedCapeTracker {
 
     private static final Map<UUID, AnimatedCapeTexture> CAPES = new ConcurrentHashMap<>();
+    /**
+     * Downloaded capes that turned out to be animated, at their own texture location, which every player wearing that
+     * cape binds. Kept across worlds, like other downloaded skin textures.
+     */
+    private static final Map<ResourceLocation, AnimatedCapeTexture> SHARED = new ConcurrentHashMap<>();
 
     private AnimatedCapeTracker() {}
 
@@ -40,6 +47,16 @@ public final class AnimatedCapeTracker {
         }
     }
 
+    /** A downloaded cape animated in place of its still first frame. */
+    public static void registerShared(ResourceLocation location, AnimatedCapeTexture texture) {
+        SHARED.put(location, texture);
+        WawelAuth.debug("Animating downloaded cape " + location);
+    }
+
+    public static boolean isShared(ResourceLocation location) {
+        return SHARED.containsKey(location);
+    }
+
     public static AnimatedCapeTexture get(UUID uuid) {
         return CAPES.get(uuid);
     }
@@ -51,6 +68,9 @@ public final class AnimatedCapeTracker {
     /** Ticks all active animated cape textures. Call once per client tick. */
     public static void tickAll() {
         for (AnimatedCapeTexture tex : CAPES.values()) {
+            tex.tick();
+        }
+        for (AnimatedCapeTexture tex : SHARED.values()) {
             tex.tick();
         }
     }
