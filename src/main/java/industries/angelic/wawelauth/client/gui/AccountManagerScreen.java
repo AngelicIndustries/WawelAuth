@@ -41,6 +41,7 @@ import com.cleanroommc.modularui.theme.WidgetTheme;
 import com.cleanroommc.modularui.utils.Alignment;
 import com.cleanroommc.modularui.widget.ParentWidget;
 import com.cleanroommc.modularui.widget.Widget;
+import com.cleanroommc.modularui.widget.sizer.Unit;
 import com.cleanroommc.modularui.widgets.ButtonWidget;
 import com.cleanroommc.modularui.widgets.Dialog;
 import com.cleanroommc.modularui.widgets.EntityDisplayWidget;
@@ -126,6 +127,11 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
     private static final int DETAIL_SECONDARY_TEXT_COLOR = WawelAuthStyle.TEXT_SECONDARY;
     private static final int PREVIEW_PANEL_BACKGROUND_COLOR = WawelAuthStyle.PANEL_INSET;
     private static final int PANORAMA_DIM_COLOR = 0x55000000;
+    private static final int PANEL_WIDTH = 360;
+    private static final int PANEL_HEIGHT = 240;
+    /** The sidebar, and the account details' widest row: its action buttons, then Done. */
+    private static final int MIN_PANEL_WIDTH = 316;
+    private static final int PANEL_SCREEN_MARGIN = 4;
     private static final int VISIBLE_PROVIDER_ROWS = 6;
     private static final int VISIBLE_ACCOUNT_ROWS = 7;
     private static final int ACCOUNT_SECTION_TOP_SPACE = 6;
@@ -562,11 +568,21 @@ public class AccountManagerScreen extends ParentAwareModularScreen {
         ClientGUI.open(new AccountManagerScreen());
     }
 
+    private static double panelWidth() {
+        Minecraft minecraft = Minecraft.getMinecraft();
+        int screenWidth = new ScaledResolution(minecraft, minecraft.displayWidth, minecraft.displayHeight)
+            .getScaledWidth();
+        return Math.max(MIN_PANEL_WIDTH, Math.min(PANEL_WIDTH, screenWidth - PANEL_SCREEN_MARGIN * 2));
+    }
+
     @Override
     public ModularPanel buildUI(ModularGuiContext context) {
         AccountManagerScreenState state = state();
-        mainPanel = ModularPanel.defaultPanel("wawelauth_account_manager", 360, 240);
-        mainPanel.background(WawelAuthStyle.panelBackground())
+        mainPanel = ModularPanel.defaultPanel("wawelauth_account_manager", PANEL_WIDTH, PANEL_HEIGHT);
+        // Narrow screens, down to the narrowest Minecraft picks, take the width from the account details; the sidebar
+        // keeps its own. Read on every layout, so it follows the window as it's resized.
+        mainPanel.width(AccountManagerScreen::panelWidth, Unit.Measure.PIXEL)
+            .background(WawelAuthStyle.panelBackground())
             .disableHoverThemeBackground(true);
 
         state.resetForBuild();
