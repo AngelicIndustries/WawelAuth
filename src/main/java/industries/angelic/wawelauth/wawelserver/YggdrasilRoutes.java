@@ -187,6 +187,23 @@ public final class YggdrasilRoutes {
         features.put("username_check", f.isUsernameCheck());
         meta.put("feature", features);
 
+        // What texture uploads take here, so clients that make textures (such as Wawel Auth's cape creator) can
+        // make them fit. Which textures a player may upload is the profile's "uploadableTextures" property.
+        ServerConfig.Textures t = config.getTextures();
+        Map<String, Object> textures = new LinkedHashMap<>();
+        textures.put("maxSkinWidth", t.getMaxSkinWidth());
+        textures.put("maxSkinHeight", t.getMaxSkinHeight());
+        textures.put("maxCapeWidth", t.getMaxCapeWidth());
+        textures.put("maxCapeHeight", t.getMaxCapeHeight());
+        textures.put("maxFileSizeBytes", t.getMaxFileSizeBytes());
+        textures.put("allowAnimatedCapes", t.isAllowAnimatedCapes());
+        textures.put("maxCapeFrameCount", t.getMaxCapeFrameCount());
+        textures.put("maxAnimatedCapeFileSizeBytes", t.getMaxAnimatedCapeFileSizeBytes());
+        textures.put("animatedCapeFormats", java.util.Arrays.asList("gif", "apng"));
+        Map<String, Object> wawelAuth = new LinkedHashMap<>();
+        wawelAuth.put("textures", textures);
+        meta.put("wawelauth", wawelAuth);
+
         root.put("meta", meta);
 
         // Skin domains (local + fallback domains)

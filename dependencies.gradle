@@ -56,6 +56,21 @@ dependencies {
     compileOnly("com.falsepattern:falsepatternlib-mc1.7.10:${fplibDepLoaderVersion}:deploader")
     shadowImplementation("com.falsepattern:falsepatternlib-mc1.7.10:${fplibDepLoaderVersion}:deploader_stub") // LGPL 3.0
 
+    // Supply a local AngelLib development jar with -PangelLibJar, e.g. a build with an unpublished API.
+    def angelLibDependency = "industries.angelic.angellib:AngelLib:24773db-snapshot:dev"
+    if (project.hasProperty("angelLibJar")) {
+        def angelLibJar = file(project.property("angelLibJar"))
+        if (!angelLibJar.isFile()) {
+            throw new GradleException("AngelLib development jar not found: ${angelLibJar}")
+        }
+        angelLibDependency = files(angelLibJar)
+        // A jar file isn't resolved against other mods' AngelLib, such as VintageResourcify's 1.0.0, which would
+        // end up next to it as a second copy.
+        configurations.configureEach {
+            exclude group: "industries.angelic.angellib", module: "AngelLib"
+        }
+    }
+
     // Pure runtime
     runtimeOnlyNonPublishable("com.github.GTNewHorizons:Hodgepodge:2.8.6:dev")
     runtimeOnlyNonPublishable("com.github.GTNewHorizons:NotEnoughItems:2.9.13-GTNH:dev")
@@ -70,7 +85,7 @@ dependencies {
 
     // Compile + runtime
     devOnlyNonPublishable("com.github.GTNewHorizons:GTNHLib:0.12.10:dev")
-    devOnlyNonPublishable("industries.angelic.angellib:AngelLib:1.0.3:dev")
+    devOnlyNonPublishable(angelLibDependency)
     devOnlyNonPublishable("com.github.GTNewHorizons:ModularUI2:2.4.3-1.7.10:dev")
     devOnlyNonPublishable("com.github.GTNewHorizons:ServerUtilities:2.5.5:dev")
     devOnlyNonPublishable("com.github.GTNewHorizons:BetterQuesting:3.9.4-GTNH:dev")
@@ -96,6 +111,8 @@ dependencies {
 
     // Test
     testImplementation("junit:junit:4.13.2")
+    // The cape creator's tests read their GIFs back with AngelLib's reader, as the game does.
+    testImplementation(angelLibDependency)
 
     /*
     implementation(rfg.deobf("net.smart:SmartMoving:1.7.10-15.8.2-maka"))

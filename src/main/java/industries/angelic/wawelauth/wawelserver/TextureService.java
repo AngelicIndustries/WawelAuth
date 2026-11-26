@@ -17,6 +17,8 @@ import javax.imageio.stream.MemoryCacheImageInputStream;
 
 import org.w3c.dom.Node;
 
+import industries.angelic.angellib.util.ApngUtil;
+import industries.angelic.angellib.util.GifUtil;
 import industries.angelic.wawelauth.Config;
 import industries.angelic.wawelauth.WawelAuth;
 import industries.angelic.wawelauth.api.SkinImageUtil;
@@ -174,6 +176,49 @@ public class TextureService {
                 WawelAuth.debug(
                     "Animated cape uploaded for profile " + profile
                         .getName() + " (hash: " + hash + ", frames: " + gifInfo[2] + ")");
+            } else if (isPng(fileData) && textureType == TextureType.CAPE && ApngUtil.isAnimated(fileData)) {
+                // ---- APNG path (animated capes): kept as uploaded, so clients without APNG show its first frame ----
+                if (!texConfig.isAllowAnimatedCapes()) {
+                    throw NetException.forbidden("Animated capes are not enabled on this server.");
+                }
+                if (fileData.length > texConfig.getMaxAnimatedCapeFileSizeBytes()) {
+                    throw NetException.illegalArgument(
+                        "APNG file too large. Maximum size: " + texConfig.getMaxAnimatedCapeFileSizeBytes()
+                            + " bytes.");
+                }
+
+                int[] apngInfo = validateApngCape(fileData, texConfig);
+                int width = apngInfo[0];
+                int height = apngInfo[1];
+                validateTextureShape(TextureType.CAPE, width, height);
+                if (width > texConfig.getMaxCapeWidth() || height > texConfig.getMaxCapeHeight()) {
+                    throw NetException.illegalArgument(
+                        "Cape dimensions " + width
+                            + "x"
+                            + height
+                            + " exceed maximum "
+                            + texConfig.getMaxCapeWidth()
+                            + "x"
+                            + texConfig.getMaxCapeHeight()
+                            + ".");
+                }
+
+                String hash = sha256Hex(fileData);
+                try {
+                    textureFileStore.write(hash, fileData);
+                } catch (IOException e) {
+                    WawelAuth.LOG.warn("Failed to write APNG texture file {}: {}", hash, e.getMessage());
+                    throw new RuntimeException("Failed to store texture file");
+                }
+
+                profile.setTextureHash(textureType, hash);
+                profile.setCapeAnimated(true);
+                profileDAO.update(profile);
+                broadcastSkinInvalidate(profile);
+
+                WawelAuth.debug(
+                    "Animated APNG cape uploaded for profile " + profile
+                        .getName() + " (hash: " + hash + ", frames: " + apngInfo[2] + ")");
             } else if (isPng(fileData)) {
                 // ---- PNG path (existing behavior) ----
                 if (fileData.length > texConfig.getMaxFileSizeBytes()) {
@@ -555,6 +600,32 @@ public class TextureService {
         } finally {
             reader.dispose();
         }
+    }
+
+    /**
+     * Width, height and frame count of an animated PNG cape. Every frame is decoded once, small, so a broken one is
+     * refused here rather than by the players' clients.
+     */
+    public static int[] validateApngCape(byte[] data, ServerConfig.Textures textures) {
+        int[] dims = readPngDimensions(data);
+        if (dims == null || dims[0] <= 0 || dims[1] <= 0) {
+            throw NetException.illegalArgument("Could not read APNG dimensions (corrupt IHDR).");
+        }
+        GifUtil.GifData frames;
+        try {
+            frames = ApngUtil.read(data, 64, 64);
+        } catch (IOException | RuntimeException e) {
+            throw NetException.illegalArgument("Could not decode the animated PNG: " + e.getMessage());
+        }
+        int count = frames.getFrameCount();
+        if (count < 2) {
+            throw NetException.illegalArgument("Animated capes need at least 2 frames.");
+        }
+        if (count > textures.getMaxCapeFrameCount()) {
+            throw NetException.illegalArgument(
+                "Animated cape has " + count + " frames; the maximum is " + textures.getMaxCapeFrameCount() + ".");
+        }
+        return new int[] { dims[0], dims[1], count };
     }
 
     private static int[] readGifLogicalDimensions(ImageReader reader) throws IOException {
